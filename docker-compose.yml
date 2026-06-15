@@ -1,0 +1,261 @@
+# ============================================================
+#  NidiRoom — docker-compose.yml
+#  Orchestration complète du projet :
+#  frontend | backend | postgres | redis | kafka | minio
+# ============================================================
+#
+#  DÉMARRAGE COMPLET :
+#  docker compose up --build
+#
+#  DÉMARRAGE EN ARRIÈRE-PLAN :
+#  docker compose up -d --build
+#
+#  ARRÊT :
+#  docker compose down
+#
+#  ARRÊT + SUPPRESSION DES VOLUMES (reset complet) :
+#  docker compose down -v
+# ============================================================
+
+services:
+
+  # ══════════════════════════════════════════════════════════
+  #  POSTGRESQL 18 — Base de données principale
+  # ══════════════════════════════════════════════════════════
+  postgres:
+    image: postgres:16-alpine
+    container_name: nidiroom_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       nidiroom_db
+      POSTGRES_USER:     nidiroom_user
+      POSTGRES_PASSWORD: nidiroom_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Script d'initialisation (créer les extensions PostGIS si besoin)
+      - ./backend/src/main/resources/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nidiroom_user -d nidiroom_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nidiroom_net
+
+  # ══════════════════════════════════════════════════════════
+  #  REDIS — Cache sessions + blacklist JWT + pub/sub
+  # ══════════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: nidiroom_redis
+    restart: unless-stopped
+    command: redis-server --requirepass nidiroom_redis_pass --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "nidiroom_redis_pass", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nidiroom_net
+
+  # ══════════════════════════════════════════════════════════
+  #  ZOOKEEPER — Requis par Apache Kafka
+  # ══════════════════════════════════════════════════════════
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: nidiroom_zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME:   2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
+    networks:
+      - nidiroom_net
+
+  # ══════════════════════════════════════════════════════════
+  #  APACHE KAFKA — Messagerie événementielle
+  #  Topics : reservations, paiements, notifications
+  # ══════════════════════════════════════════════════════════
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: nidiroom_kafka
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_started
+    environment:
+      KAFKA_BROKER_ID:                        1
+      KAFKA_ZOOKEEPER_CONNECT:                zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS:             PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP:   PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME:       PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE:        "true"
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - nidiroom_net
+
+  # ══════════════════════════════════════════════════════════
+  #  MINIO — Stockage objet (images annonces)
+  #  Compatible API S3
+  # ══════════════════════════════════════════════════════════
+  minio:
+    image: minio/minio:latest
+    container_name: nidiroom_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER:     nidiroom_minio
+      MINIO_ROOT_PASSWORD: nidiroom_minio_secret
+    ports:
+      - "9000:9000"   # API S3
+      - "9001:9001"   # Console web MinIO
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - nidiroom_net
+
+  # ══════════════════════════════════════════════════════════
+  #  BACKEND — Spring Boot 4.0 / Java 21
+  # ══════════════════════════════════════════════════════════
+  backend:
+    build:
+      context:    ./backend
+      dockerfile: Dockerfile
+    container_name: nidiroom_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      minio:
+        condition: service_started
+    environment:
+      # Base de données
+      SPRING_DATASOURCE_URL:      jdbc:postgresql://postgres:5432/nidiroom_db
+      SPRING_DATASOURCE_USERNAME: nidiroom_user
+      SPRING_DATASOURCE_PASSWORD: nidiroom_pass
+
+      # Redis
+      SPRING_REDIS_HOST:     redis
+      SPRING_REDIS_PORT:     6379
+      SPRING_REDIS_PASSWORD: nidiroom_redis_pass
+
+      # Kafka
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+      # MinIO
+      MINIO_ENDPOINT:   http://minio:9000
+      MINIO_ACCESS_KEY: nidiroom_minio
+      MINIO_SECRET_KEY: nidiroom_minio_secret
+      MINIO_BUCKET:     nidiroom-images
+
+      # JWT
+      JWT_SECRET:     ${JWT_SECRET:-nidiroom_super_secret_jwt_key_2024_change_in_prod}
+      JWT_EXPIRATION: 86400000
+
+      # App
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT:            8080
+
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - nidiroom_net
+
+  # ══════════════════════════════════════════════════════════
+  #  FRONTEND — Next.js
+  # ══════════════════════════════════════════════════════════
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://backend:8080
+        NEXT_PUBLIC_WS_URL:  http://backend:8080/ws
+    container_name: nidiroom_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+      NEXT_PUBLIC_WS_URL:  http://localhost:8080/ws
+    ports:
+      - "3000:3000"
+    networks:
+      - nidiroom_net
+
+  # ══════════════════════════════════════════════════════════
+  #  REDIS INSIGHTS — Interface graphique Redis (optionnel)
+  # ══════════════════════════════════════════════════════════
+  redis-insights:
+    image: redislabs/redisinsight:latest
+    container_name: nidiroom_redis_insights
+    restart: unless-stopped
+    depends_on:
+      - redis
+    ports:
+      - "8001:8001"
+    networks:
+      - nidiroom_net
+    profiles:
+      - tools   # Démarrer avec : docker compose --profile tools up
+
+# ══════════════════════════════════════════════════════════
+#  VOLUMES PERSISTANTS
+# ══════════════════════════════════════════════════════════
+volumes:
+  postgres_data:
+    name: nidiroom_postgres_data
+  redis_data:
+    name: nidiroom_redis_data
+  kafka_data:
+    name: nidiroom_kafka_data
+  zookeeper_data:
+    name: nidiroom_zookeeper_data
+  zookeeper_log:
+    name: nidiroom_zookeeper_log
+  minio_data:
+    name: nidiroom_minio_data
+
+# ══════════════════════════════════════════════════════════
+#  RÉSEAU INTERNE
+# ══════════════════════════════════════════════════════════
+networks:
+  nidiroom_net:
+    name:   nidiroom_network
+    driver: bridge
