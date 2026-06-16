@@ -17,7 +17,7 @@ import { isAuthenticated, isTokenExpired } from "@/lib/auth";
 //  TYPES
 // ══════════════════════════════════════════════════════════
 
-type Role = "LOCATAIRE" | "HOTE";
+type Role = "CLIENT" | "HOTE";
 
 interface FormData {
   nom:           string;
@@ -27,6 +27,7 @@ interface FormData {
   mot_de_passe:  string;
   confirmation:  string;
   role:          Role;
+  raison_sociale: string;  // Pour les HOTEs (optionnel pour CLIENTs)
 }
 
 type FormErrors = Partial<Record<keyof FormData | "form", string>>;
@@ -52,7 +53,8 @@ export default function RegisterPage() {
     telephone:    "",
     mot_de_passe: "",
     confirmation: "",
-    role:         roleFromUrl === "HOTE" ? "HOTE" : "LOCATAIRE",
+    role:         roleFromUrl === "HOTE" ? "HOTE" : "CLIENT",
+    raison_sociale: "",
   });
 
   const [errors,   setErrors]   = useState<FormErrors>({});
@@ -108,7 +110,8 @@ export default function RegisterPage() {
       errs.confirmation = "Veuillez confirmer le mot de passe.";
     else if (form.mot_de_passe !== form.confirmation)
       errs.confirmation = "Les mots de passe ne correspondent pas.";
-
+    if (form.role === "HOTE" && !form.raison_sociale.trim())
+      errs.raison_sociale = "La raison sociale est obligatoire pour un hôte.";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -131,9 +134,12 @@ export default function RegisterPage() {
       mot_de_passe: form.mot_de_passe,
       role:         form.role,
       ...(form.telephone ? { telephone: form.telephone.trim() } : {}),
+      ...(form.role === "HOTE" ? { raison_sociale: form.raison_sociale.trim() } : {}),
     });
 
     setLoading(false);
+
+    console.log("[Register] Réponse:", { data, error });
 
     if (error || !data) {
       setErrors({ form: error || "Erreur lors de l'inscription." });
@@ -141,9 +147,17 @@ export default function RegisterPage() {
       return;
     }
 
+    // Vérifier que la réponse contient user et token
+    if (!data.user || !data.token) {
+      console.error("[Register] Structure invalide:", data);
+      setErrors({ form: "Erreur: Réponse du serveur invalide." });
+      showToast("Erreur serveur - données invalides.", "error");
+      return;
+    }
+
     setSession(data.token, data.user);
     showToast(
-      `Bienvenue ${data.user.prenom} ! Votre compte ${form.role === "HOTE" ? "hôte" : "locataire"} est créé. 🎉`,
+      `Bienvenue ${data.user.prenom} ! Votre compte ${form.role === "HOTE" ? "hôte" : "client"} est créé. 🎉`,
       "success",
       5000
     );
@@ -204,7 +218,7 @@ export default function RegisterPage() {
               Je souhaite…
             </p>
             <div className="grid grid-cols-2 gap-3">
-              {(["LOCATAIRE", "HOTE"] as Role[]).map((r) => (
+              {(["CLIENT", "HOTE"] as Role[]).map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -217,15 +231,41 @@ export default function RegisterPage() {
                               }`}
                 >
                   <span className="text-2xl">
-                    {r === "LOCATAIRE" ? "🔍" : "🏠"}
+                    {r === "CLIENT" ? "🔍" : "🏠"}
                   </span>
                   <span>
-                    {r === "LOCATAIRE" ? "Louer une chambre" : "Proposer ma chambre"}
+                    {r === "CLIENT" ? "Louer une chambre" : "Proposer ma chambre"}
                   </span>
                 </button>
               ))}
             </div>
           </div>
+
+          {/* ── CHAMP RAISON SOCIALE (HOTEs) ── */}
+          {form.role === "HOTE" && (
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Raison Sociale <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={form.raison_sociale}
+                onChange={(e) => update("raison_sociale", e.target.value)}
+                placeholder="Ex: Dupont SARL"
+                className={`w-full px-4 py-3 border rounded-xl text-sm outline-none
+                            transition-colors placeholder-gray-300 text-gray-800
+                            ${errors.raison_sociale
+                              ? "border-red-400 focus:border-red-500"
+                              : "border-gray-200 focus:border-red-400"}`}
+              />
+              {errors.raison_sociale && (
+                <p className="text-red-500 text-xs mt-1">{errors.raison_sociale}</p>
+              )}
+              <p className="text-xs text-amber-700 mt-2">
+                🏢 Nom de votre entreprise ou raison sociale (obligatoire pour les hôtes)
+              </p>
+            </div>
+          )}
 
           {/* ── FORMULAIRE ── */}
           <form onSubmit={handleSubmit} noValidate className="space-y-4">

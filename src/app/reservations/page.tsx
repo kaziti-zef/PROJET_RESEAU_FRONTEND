@@ -11,7 +11,7 @@ import Link from "next/link";
 import {
   getMesReservations,
   annulerReservation,
-  initierPaiement,
+  createPaiement,
   Reservation,
 } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -264,7 +264,7 @@ export default function ReservationsPage() {
 
   async function handlePayer(id: number) {
     setActionLoading(id);
-    const { data, error } = await initierPaiement(id);
+    const { data, error } = await createPaiement({ reservation_id: id });
     setActionLoading(null);
     if (error || !data) { showToast(error || "Erreur lors du paiement.", "error"); return; }
     window.location.href = data.payment_url;

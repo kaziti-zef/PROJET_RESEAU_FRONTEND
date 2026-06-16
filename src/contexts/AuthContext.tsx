@@ -24,7 +24,6 @@ import {
   isTokenExpired,
 } from "@/lib/auth";
 import { socketService } from "@/lib/socket";
-import { logout as apiLogout } from "@/lib/api";
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -75,6 +74,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Sauvegarder une session (après login / register) ─────
 
   const setSession = useCallback((newToken: string, newUser: User) => {
+    console.log("[AuthContext] setSession with:", { newToken, newUser });
+    
+    // Validation
+    if (!newUser || !newToken) {
+      console.error("[AuthContext] Invalid session data:", { newToken, newUser });
+      return;
+    }
+    
+    if (!newUser.id) {
+      console.error("[AuthContext] User missing id:", newUser);
+      return;
+    }
+    
     saveToken(newToken);
     saveUser(newUser);
     setToken(newToken);
@@ -89,17 +101,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Effacer la session (déconnexion) ─────────────────────
 
   const clearSession = useCallback(async () => {
-    try {
-      await apiLogout(); // invalide le token dans Redis
-    } catch {
-      // Déconnexion côté client même si le serveur est indisponible
-    } finally {
-      socketService.disconnect();
-      removeToken();
-      removeUser();
-      setToken(null);
-      setUser(null);
-    }
+    socketService.disconnect();
+    removeToken();
+    removeUser();
+    setToken(null);
+    setUser(null);
   }, []);
 
   return (

@@ -1,10 +1,10 @@
 // ============================================================
 //  NidiRoom — lib/auth.ts
-//  Gestion de la session JWT, du stockage et de la 2FA
+//  Gestion de la session JWT et du stockage
 //  Utilisé par toutes les pages protégées
 // ============================================================
 
-import { User, login, register, logout as apiLogout } from "./api";
+import { User, login, register } from "./api";
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -24,7 +24,7 @@ export interface RegisterPayload {
   prenom: string;
   email: string;
   mot_de_passe: string;
-  role: "LOCATAIRE" | "HOTE";
+  role: "CLIENT" | "HOTE";
   telephone?: string;
 }
 
@@ -92,25 +92,18 @@ export function getAuthState(): AuthState {
 
 /**
  * Connecte l'utilisateur :
- * 1. Appelle POST /api/auth/login
+ * 1. Appelle POST /api/auth/connexion
  * 2. Stocke le token + user dans localStorage
- * 3. Retourne { success, error, requires2FA }
+ * 3. Retourne { success, error }
  */
 export async function signIn(
   email: string,
   mot_de_passe: string
-): Promise<{ success: boolean; error: string | null; requires2FA?: boolean }> {
+): Promise<{ success: boolean; error: string | null }> {
   const { data, error } = await login({ email, mot_de_passe });
 
   if (error || !data) {
     return { success: false, error: error || "Erreur de connexion." };
-  }
-
-  // Le backend peut signaler que la 2FA est requise
-  if ((data as { requires2FA?: boolean }).requires2FA) {
-    // On stocke le token temporaire pour la vérification 2FA
-    saveToken(data.token);
-    return { success: false, error: null, requires2FA: true };
   }
 
   saveToken(data.token);
@@ -120,7 +113,7 @@ export async function signIn(
 
 /**
  * Inscrit un nouvel utilisateur :
- * 1. Appelle POST /api/auth/register
+ * 1. Appelle POST /api/auth/inscription
  * 2. Stocke le token + user
  * 3. Retourne { success, error }
  */
@@ -140,13 +133,13 @@ export async function signUp(
 
 /**
  * Déconnecte l'utilisateur :
- * 1. Appelle POST /api/auth/logout (invalide le token côté Redis)
- * 2. Supprime localStorage
- * 3. Redirige vers /login
+ * 1. Supprime localStorage
+ * 2. Redirige vers /login
  */
 export async function signOut(): Promise<void> {
   try {
-    await apiLogout(); // invalide le token dans Redis (blacklist)
+    // Optionnel: appeler le backend pour nettoyer côté serveur
+    await apiLogout();
   } catch {
     // Même si le serveur est indisponible, on déconnecte côté client
   } finally {
@@ -168,10 +161,10 @@ export function isHote(): boolean {
   return user?.role === "HOTE";
 }
 
-/** L'utilisateur connecté est-il un admin ? */
-export function isAdmin(): boolean {
+/** L'utilisateur connecté est-il un client ? */
+export function isClient(): boolean {
   const user = getUser();
-  return user?.role === "ADMIN";
+  return user?.role === "CLIENT";
 }
 
 /** L'utilisateur est-il connecté ? */

@@ -39,7 +39,7 @@ function Avatar({ user }: { user: User }) {
             ${user.role === "HOTE" ? "bg-red-100 text-red-700"
             : user.role === "ADMIN" ? "bg-purple-100 text-purple-700"
             : "bg-blue-100 text-blue-700"}`}>
-            {user.role === "HOTE" ? "🏠 Hôte" : user.role === "ADMIN" ? "🛡️ Admin" : "🔍 Locataire"}
+            {user.role === "HOTE" ? "🏠 Hôte" : "🔍 Client"}
           </span>
           {user.twoFactorEnabled && (
             <span className="text-xs font-bold px-3 py-1 rounded-full bg-green-100 text-green-700">
@@ -306,7 +306,7 @@ export default function ProfilePage() {
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">Rôle</label>
             <div className="px-4 py-3 border border-gray-100 rounded-xl bg-gray-50 text-sm text-gray-500">
-              {profil.role === "HOTE" ? "🏠 Hôte" : profil.role === "ADMIN" ? "🛡️ Administrateur" : "🔍 Locataire"}
+              {profil.role === "HOTE" ? "🏠 Hôte" : "🔍 Client"}
             </div>
           </div>
 

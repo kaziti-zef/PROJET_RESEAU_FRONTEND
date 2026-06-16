@@ -1,10 +1,10 @@
 // ============================================================
 //  NidiRoom — lib/api.ts
-//  Toutes les fonctions d'appel vers le backend Spring Boot
-//  Base URL : http://localhost:8080  (Spring Boot par défaut)
+//  Toutes les fonctions d'appel vers le backend Node.js
+//  Base URL : http://localhost:4000  (Node.js par défaut)
 // ============================================================
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 // ── Types globaux ──────────────────────────────────────────
 
@@ -19,10 +19,10 @@ export interface User {
   nom: string;
   prenom: string;
   email: string;
-  role: "LOCATAIRE" | "HOTE" | "ADMIN";
+  role: "CLIENT" | "HOTE";
   telephone?: string;
   photo?: string;
-  twoFactorEnabled?: boolean;
+  raison_sociale?: string;  // Pour les HOTEs
 }
 
 export interface Annonce {
@@ -74,8 +74,9 @@ export interface RegisterPayload {
   prenom: string;
   email: string;
   mot_de_passe: string;
-  role: "LOCATAIRE" | "HOTE";
+  role: "CLIENT" | "HOTE";
   telephone?: string;
+  raison_sociale?: string;  // Pour les HOTEs
 }
 
 export interface AnnoncePayload {
@@ -147,6 +148,7 @@ async function apiFetch<T>(
     }
 
     const json = await res.json();
+    console.log(`[API] ${endpoint} →`, json);
 
     if (!res.ok) {
       return {
@@ -173,36 +175,54 @@ async function apiFetch<T>(
 
 /** Connexion — retourne token JWT + infos utilisateur */
 export async function login(payload: LoginPayload) {
-  return apiFetch<{ token: string; user: User }>("/api/auth/login", {
+  const result = await apiFetch<{ message: string; token: string; utilisateur: User }>("/api/auth/connexion", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  
+  // Transformer la structure du backend (utilisateur → user)
+  if (result.data) {
+    return {
+      data: {
+        token: result.data.token,
+        user: result.data.utilisateur,
+      },
+      error: result.error,
+      status: result.status,
+    };
+  }
+  return result as any;
 }
 
 /** Inscription */
 export async function register(payload: RegisterPayload) {
-  return apiFetch<{ token: string; user: User }>("/api/auth/register", {
+  const result = await apiFetch<{ message: string; token: string; utilisateur: User }>("/api/auth/inscription", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  
+  // Transformer la structure du backend (utilisateur → user)
+  if (result.data) {
+    return {
+      data: {
+        token: result.data.token,
+        user: result.data.utilisateur,
+      },
+      error: result.error,
+      status: result.status,
+    };
+  }
+  return result as any;
 }
 
 /** Profil de l'utilisateur connecté */
 export async function getMe() {
-  return apiFetch<User>("/api/auth/me");
+  return apiFetch<User>("/api/auth/profil");
 }
 
-/** Déconnexion côté serveur (invalide le token si blacklist Redis) */
+/** Déconnexion */
 export async function logout() {
   return apiFetch<void>("/api/auth/logout", { method: "POST" });
-}
-
-/** Vérification du code 2FA */
-export async function verify2FA(code: string) {
-  return apiFetch<{ token: string; user: User }>("/api/auth/2fa/verify", {
-    method: "POST",
-    body: JSON.stringify({ code }),
-  });
 }
 
 // ══════════════════════════════════════════════════════════
@@ -282,7 +302,7 @@ export async function getMesReservations() {
 
 /** Réservations reçues (en tant qu'hôte) */
 export async function getReservationsRecues() {
-  return apiFetch<Reservation[]>("/api/reservations/recues");
+  return apiFetch<Reservation[]>("/api/reservations/hote");
 }
 
 /** Confirmer une réservation (HOTE) */
@@ -305,36 +325,40 @@ export async function annulerReservation(id: number) {
 
 /** Avis d'une annonce */
 export async function getAvis(annonceId: number) {
-  return apiFetch<Avis[]>(`/api/annonces/${annonceId}/avis`);
+  return apiFetch<Avis[]>(`/api/avis/annonce/${annonceId}`);
 }
 
 /** Laisser un avis */
 export async function createAvis(
-  annonceId: number,
-  payload: { note: number; commentaire: string }
+  payload: { annonce_id: number; note: number; commentaire: string }
 ) {
-  return apiFetch<Avis>(`/api/annonces/${annonceId}/avis`, {
+  return apiFetch<Avis>("/api/avis", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+/** Mes avis */
+export async function getMesAvis() {
+  return apiFetch<Avis[]>("/api/avis/mes-avis");
 }
 
 // ══════════════════════════════════════════════════════════
 //  PAIEMENTS
 // ══════════════════════════════════════════════════════════
 
-/** Initier un paiement pour une réservation */
-export async function initierPaiement(reservationId: number) {
-  return apiFetch<{ payment_url: string; reference: string }>(
-    `/api/paiements/initier/${reservationId}`,
-    { method: "POST" }
-  );
+/** Effectuer un paiement pour une réservation */
+export async function createPaiement(payload: { reservation_id: number }) {
+  return apiFetch<{ success: boolean; message: string }>("/api/paiements", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
-/** Vérifier le statut d'un paiement */
-export async function verifierPaiement(reference: string) {
+/** Obtenir les détails d'un paiement */
+export async function getPaiement(reservationId: number) {
   return apiFetch<{ statut: string; montant: number }>(
-    `/api/paiements/verifier/${reference}`
+    `/api/paiements/reservation/${reservationId}`
   );
 }
 

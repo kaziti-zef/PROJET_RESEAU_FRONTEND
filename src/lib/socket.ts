@@ -1,23 +1,21 @@
 // ============================================================
 //  NidiRoom — lib/socket.ts
-//  Connexion WebSocket temps réel (STOMP over SockJS)
-//  Le backend Spring Boot reçoit les events Kafka et les
-//  pousse aux clients via WebSocket/STOMP
+//  Connexion WebSocket temps réel avec Socket.io
+//  Le backend Node.js envoie les notifications temps réel
+//  via Socket.io
 // ============================================================
 //
 //  DÉPENDANCES À INSTALLER :
-//  npm install @stomp/stompjs sockjs-client
-//  npm install --save-dev @types/sockjs-client
+//  npm install socket.io-client
 // ============================================================
 
-import { Client, IMessage, StompSubscription } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
-import { getToken } from "./auth";
+import { io, Socket } from "socket.io-client";
+import { getToken, getUser } from "./auth";
 
 // ── Configuration ──────────────────────────────────────────
 
 const WS_URL =
-  process.env.NEXT_PUBLIC_WS_URL || "http://localhost:8080/ws";
+  process.env.NEXT_PUBLIC_WS_URL || "http://localhost:4000";
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -47,23 +45,20 @@ export type NotificationHandler = (notif: SocketNotification) => void;
 // ══════════════════════════════════════════════════════════
 
 class NidiRoomSocket {
-  private client: Client | null = null;
-  private subscriptions: Map<string, StompSubscription> = new Map();
+  private socket: Socket | null = null;
   private handlers: Map<string, Set<NotificationHandler>> = new Map();
-  private reconnectDelay: number = 5000;
   private isConnected: boolean = false;
 
   // ── Connexion ────────────────────────────────────────────
 
   /**
-   * Initialise et connecte le client STOMP.
+   * Initialise et connecte le client Socket.io.
    * À appeler après la connexion de l'utilisateur.
-   * Le token JWT est passé dans les headers STOMP pour
-   * que Spring Security valide la connexion WebSocket.
+   * Le token JWT est passé en query param pour que Node.js valide la connexion.
    */
   connect(userId: number): Promise<void> {
     return new Promise((resolve, reject) => {
-      if (this.isConnected) {
+      if (this.isConnected && this.socket) {
         resolve();
         return;
       }
@@ -74,63 +69,81 @@ class NidiRoomSocket {
         return;
       }
 
-      this.client = new Client({
-        // SockJS comme transport (fallback si WebSocket natif bloqué)
-        webSocketFactory: () => new SockJS(WS_URL),
-
-        // Headers d'authentification envoyés lors du handshake STOMP
-        connectHeaders: {
-          Authorization: `Bearer ${token}`,
-          "user-id": String(userId),
-        },
-
-        // Reconnexion automatique toutes les 5 secondes
-        reconnectDelay: this.reconnectDelay,
+      try {
+        this.socket = io(WS_URL, {
+          auth: {
+            token: `Bearer ${token}`,
+            userId: String(userId),
+          },
+          reconnection: true,
+          reconnectionDelay: 5000,
+          reconnectionDelayMax: 10000,
+          reconnectionAttempts: 5,
+        });
 
         // ── Connexion réussie ──
-        onConnect: () => {
+        this.socket.on("connect", () => {
           console.log("[Socket] Connecté au serveur WebSocket");
           this.isConnected = true;
 
-          // Abonnement aux notifications personnelles de l'utilisateur
-          // Spring Boot publie sur /user/{userId}/queue/notifications
-          this._subscribe(
-            `/user/${userId}/queue/notifications`,
-            "notifications",
-            (msg) => this._dispatch("notifications", msg)
-          );
-
-          // Abonnement aux notifications globales (ex: annonces système)
-          this._subscribe(
-            "/topic/annonces",
-            "annonces-globales",
-            (msg) => this._dispatch("annonces-globales", msg)
-          );
+          // Le serveur envoie un événement de confirmation
+          this.socket?.emit("rejoindre", { userId, role: getUser()?.role });
 
           resolve();
-        },
+        });
 
-        // ── Erreur STOMP ──
-        onStompError: (frame) => {
-          console.error("[Socket] Erreur STOMP :", frame.headers["message"]);
+        // ── Réception des événements ──
+        this.socket.on("reservation_confirmee", (data) => {
+          this._dispatch("notifications", {
+            id: String(Date.now()),
+            type: "RESERVATION_CONFIRMEE",
+            titre: "Réservation confirmée",
+            message: "Votre réservation a été confirmée",
+            data,
+            timestamp: new Date().toISOString(),
+            lu: false,
+          });
+        });
+
+        this.socket.on("nouvelle_reservation", (data) => {
+          this._dispatch("notifications", {
+            id: String(Date.now()),
+            type: "RESERVATION_RECUE",
+            titre: "Nouvelle réservation",
+            message: "Vous avez reçu une nouvelle réservation",
+            data,
+            timestamp: new Date().toISOString(),
+            lu: false,
+          });
+        });
+
+        this.socket.on("reservation_annulee", (data) => {
+          this._dispatch("notifications", {
+            id: String(Date.now()),
+            type: "RESERVATION_ANNULEE",
+            titre: "Réservation annulée",
+            message: "Une réservation a été annulée",
+            data,
+            timestamp: new Date().toISOString(),
+            lu: false,
+          });
+        });
+
+        // ── Erreur de connexion ──
+        this.socket.on("connect_error", (error: Error) => {
+          console.error("[Socket] Erreur de connexion :", error.message);
           this.isConnected = false;
-          reject(new Error(frame.headers["message"]));
-        },
+          reject(error);
+        });
 
         // ── Déconnexion ──
-        onDisconnect: () => {
-          console.log("[Socket] Déconnecté");
+        this.socket.on("disconnect", () => {
+          console.log("[Socket] Déconnecté du serveur");
           this.isConnected = false;
-        },
-
-        // ── WebSocket fermé ──
-        onWebSocketClose: () => {
-          console.warn("[Socket] WebSocket fermé — tentative de reconnexion…");
-          this.isConnected = false;
-        },
-      });
-
-      this.client.activate();
+        });
+      } catch (err) {
+        reject(err);
+      }
     });
   }
 
@@ -138,46 +151,26 @@ class NidiRoomSocket {
 
   /** Déconnecte proprement le WebSocket */
   disconnect(): void {
-    if (this.client) {
-      this.subscriptions.forEach((sub) => sub.unsubscribe());
-      this.subscriptions.clear();
-      this.handlers.clear();
-      this.client.deactivate();
-      this.client = null;
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
       this.isConnected = false;
+      this.handlers.clear();
       console.log("[Socket] Déconnexion propre effectuée");
     }
   }
 
-  // ── Abonnement interne ───────────────────────────────────
-
-  private _subscribe(
-    destination: string,
-    key: string,
-    callback: (msg: IMessage) => void
-  ): void {
-    if (!this.client || !this.isConnected) return;
-
-    const sub = this.client.subscribe(destination, callback);
-    this.subscriptions.set(key, sub);
-  }
-
   // ── Dispatch des messages reçus ──────────────────────────
 
-  private _dispatch(channel: string, msg: IMessage): void {
-    try {
-      const notif: SocketNotification = JSON.parse(msg.body);
-      const channelHandlers = this.handlers.get(channel);
-      if (channelHandlers) {
-        channelHandlers.forEach((handler) => handler(notif));
-      }
-      // Dispatch global (tous les canaux)
-      const globalHandlers = this.handlers.get("*");
-      if (globalHandlers) {
-        globalHandlers.forEach((handler) => handler(notif));
-      }
-    } catch (err) {
-      console.error("[Socket] Erreur parsing message :", err);
+  private _dispatch(channel: string, notif: SocketNotification): void {
+    const channelHandlers = this.handlers.get(channel);
+    if (channelHandlers) {
+      channelHandlers.forEach((handler) => handler(notif));
+    }
+    // Dispatch global (tous les canaux)
+    const globalHandlers = this.handlers.get("*");
+    if (globalHandlers) {
+      globalHandlers.forEach((handler) => handler(notif));
     }
   }
 
@@ -185,7 +178,7 @@ class NidiRoomSocket {
 
   /**
    * S'abonner aux notifications d'un canal.
-   * @param channel "notifications" | "annonces-globales" | "*" (tous)
+   * @param channel "notifications" | "*" (tous)
    * @param handler fonction appelée à chaque message reçu
    * @returns fonction de désabonnement
    *
@@ -208,27 +201,6 @@ class NidiRoomSocket {
     };
   }
 
-  /**
-   * Envoyer un message au backend via STOMP.
-   * Utilisé pour les actions temps réel (ex: marquer comme lu).
-   */
-  send(destination: string, body: Record<string, unknown>): void {
-    if (!this.client || !this.isConnected) {
-      console.warn("[Socket] Non connecté — message non envoyé");
-      return;
-    }
-    this.client.publish({
-      destination,
-      body: JSON.stringify(body),
-      headers: { "content-type": "application/json" },
-    });
-  }
-
-  /** Marquer une notification comme lue via WebSocket */
-  marquerLue(notifId: string): void {
-    this.send("/app/notifications/lire", { id: notifId });
-  }
-
   /** Vérifie si le socket est connecté */
   get connected(): boolean {
     return this.isConnected;
@@ -247,7 +219,6 @@ export const socketService = new NidiRoomSocket();
 // ══════════════════════════════════════════════════════════
 
 import { useEffect, useCallback } from "react";
-import { getUser } from "./auth";
 
 /**
  * Hook React pour s'abonner aux notifications WebSocket.
