@@ -7,10 +7,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ImagePlus, X } from "lucide-react";
+import { ArrowLeft, ImagePlus } from "lucide-react";
 import { createAnnonce } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
+import styles from "../host-listings.module.css";
 
 export default function CreateListingPage() {
   const router = useRouter();
@@ -60,57 +61,53 @@ export default function CreateListingPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F7F3EC", paddingTop: "104px", paddingBottom: 60 }}>
-      <div className="mx-auto px-6" style={{ maxWidth: "720px" }}>
-        <Link href="/host/dashboard" className="inline-flex items-center gap-2 mb-4" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#1A3C2E", textDecoration: "none" }}>
+    <div className={styles.pageWrap}>
+      <div className={`${styles.container} mx-auto px-6`}>
+        <Link href="/host/dashboard" className={`${styles.backLink} inline-flex items-center gap-2 mb-4`}>
           <ArrowLeft size={16} /> Retour au tableau de bord
         </Link>
-        <h1 className="mb-8" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 42, fontWeight: 600, color: "#1A3C2E" }}>Nouvelle annonce</h1>
+        <h1 className={`${styles.pageTitle} mb-8`}>Nouvelle annonce</h1>
 
-        <form onSubmit={onSubmit} className="rounded-2xl p-7 flex flex-col gap-5" style={{ background: "#fff", border: "1px solid rgba(26,60,46,0.08)" }}>
-          <Field label="Titre de l'annonce *"><input className="lf-input" value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Suite Panoramique Rainforest" required /></Field>
-          <Field label="Description"><textarea className="lf-input" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Décrivez votre chambre, ses atouts, la vue…" style={{ resize: "vertical" }} /></Field>
+        <form onSubmit={onSubmit} className={`${styles.formCard} rounded-2xl p-7 flex flex-col gap-5`}>
+          <Field label="Titre de l'annonce *"><input className={styles.input} value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Suite Panoramique Rainforest" required /></Field>
+          <Field label="Description"><textarea className={`${styles.input} ${styles.textarea}`} rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Décrivez votre chambre, ses atouts, la vue…" /></Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Ville *"><input className="lf-input" value={ville} onChange={(e) => setVille(e.target.value)} placeholder="Limbé" required /></Field>
-            <Field label="Quartier"><input className="lf-input" value={quartier} onChange={(e) => setQuartier(e.target.value)} placeholder="Down Beach" /></Field>
+            <Field label="Ville *"><input className={styles.input} value={ville} onChange={(e) => setVille(e.target.value)} placeholder="Limbé" required /></Field>
+            <Field label="Quartier"><input className={styles.input} value={quartier} onChange={(e) => setQuartier(e.target.value)} placeholder="Down Beach" /></Field>
           </div>
-          <Field label="Adresse"><input className="lf-input" value={adresse} onChange={(e) => setAdresse(e.target.value)} placeholder="Rue, repère…" /></Field>
+          <Field label="Adresse"><input className={styles.input} value={adresse} onChange={(e) => setAdresse(e.target.value)} placeholder="Rue, repère…" /></Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Prix par nuit (FCFA) *"><input className="lf-input" type="number" min={0} value={prix} onChange={(e) => setPrix(e.target.value)} placeholder="45000" required /></Field>
+            <Field label="Prix par nuit (FCFA) *"><input className={styles.input} type="number" min={0} value={prix} onChange={(e) => setPrix(e.target.value)} placeholder="45000" required /></Field>
             <Field label="Capacité (personnes) *">
-              <div className="flex items-center gap-3" style={{ background: "#F7F3EC", border: "1px solid rgba(26,60,46,0.15)", borderRadius: 10, padding: "8px 12px" }}>
-                <button type="button" onClick={() => setCapacite((c) => Math.max(1, c - 1))} className="lf-step">−</button>
-                <span className="flex-1 text-center" style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>{capacite}</span>
-                <button type="button" onClick={() => setCapacite((c) => c + 1)} className="lf-step">+</button>
+              <div className={`${styles.stepper} flex items-center gap-3`}>
+                <button type="button" onClick={() => setCapacite((c) => Math.max(1, c - 1))} className={styles.stepBtn}>−</button>
+                <span className={`${styles.stepValue} flex-1 text-center`}>{capacite}</span>
+                <button type="button" onClick={() => setCapacite((c) => c + 1)} className={styles.stepBtn}>+</button>
               </div>
             </Field>
           </div>
 
           <Field label="Photos (jusqu'à 5)">
-            <label className="flex items-center gap-3 rounded-xl cursor-pointer" style={{ background: "#F7F3EC", border: "1.5px dashed rgba(26,60,46,0.25)", padding: "16px", justifyContent: "center" }}>
+            <label className={`${styles.uploader} flex items-center gap-3 rounded-xl cursor-pointer`}>
               <ImagePlus size={18} color="#C9943A" />
-              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "rgba(28,28,28,0.6)" }}>Choisir des images (jpg, png, webp)</span>
+              <span className={styles.uploaderText}>Choisir des images (jpg, png, webp)</span>
               <input type="file" accept="image/*" multiple hidden onChange={onFiles} />
             </label>
             {previews.length > 0 && (
               <div className="flex gap-2 mt-3 flex-wrap">
                 {previews.map((src, i) => (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img key={i} src={src} alt="" style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 8, border: "1px solid rgba(26,60,46,0.1)" }} />
+                  <img key={i} src={src} alt="" className={styles.previewImg} />
                 ))}
               </div>
             )}
           </Field>
 
-          <button type="submit" disabled={saving} style={{ marginTop: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700, color: "#1A3C2E", background: "linear-gradient(135deg, #C9943A, #D9A84A)", border: "none", borderRadius: 10, padding: 14, cursor: saving ? "wait" : "pointer", opacity: saving ? 0.7 : 1, boxShadow: "0 4px 18px rgba(201,148,58,0.35)" }}>
+          <button type="submit" disabled={saving} className={styles.submitBtn}>
             {saving ? "Publication…" : "Publier l'annonce"}
           </button>
         </form>
       </div>
-      <style>{`
-        .lf-input { font-family:'DM Sans',sans-serif; font-size:14px; color:#1C1C1C; background:#F7F3EC; border:1px solid rgba(26,60,46,0.15); border-radius:10px; padding:11px 14px; width:100%; outline:none; }
-        .lf-step { background:rgba(26,60,46,0.1); border:none; border-radius:6px; width:30px; height:30px; cursor:pointer; font-size:16px; color:#1A3C2E; }
-      `}</style>
     </div>
   );
 }
@@ -118,7 +115,7 @@ export default function CreateListingPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-2">
-      <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 600, color: "#1A3C2E", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</span>
+      <span className={styles.fieldLabel}>{label}</span>
       {children}
     </label>
   );

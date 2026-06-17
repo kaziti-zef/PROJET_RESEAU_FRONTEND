@@ -315,10 +315,8 @@ export default function HomePage() {
           </p>
           <div className="flex gap-3 max-w-md mx-auto">
             <input type="email" placeholder="votre@email.com" style={{ flex: 1, fontFamily: "'DM Sans', sans-serif", fontSize: "15px", color: "#F7F3EC", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(201,148,58,0.35)", borderRadius: "8px", padding: "12px 18px", outline: "none" }} />
-            <button style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "14px", fontWeight: 700, color: "#1A3C2E", background: "linear-gradient(135deg, #C9943A, #D9A84A)", border: "none", borderRadius: "8px", padding: "12px 24px", cursor: "pointer", whiteSpace: "nowrap" }}>S&apos;inscrire</button>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
+            <button style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "14px", fontWeight: 700, color: "#1A3C2E", background: "linear-gradient(135deg, #C9943A, #D9A84A)", border: "none", borderRadius: "8px", padding: "12px 24px", cursor: "pointer", whiteSpace: "nowrap" }}>S&apos;inscrire</button></div>
+</div>
+</section>
+</div>
+  )}

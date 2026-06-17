@@ -1,0 +1,222 @@
+/* Dashboard page */
+
+.pageWrap {
+  min-height: 100vh;
+  background: #F7F3EC;
+  padding-top: 104px;
+  padding-bottom: 60px;
+}
+
+.container {
+  max-width: 1100px;
+}
+
+.sectionTag {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #C9943A;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.pageTitle {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 42px;
+  font-weight: 600;
+  color: #1A3C2E;
+}
+
+.newListingBtn {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1A3C2E;
+  background: linear-gradient(135deg, #C9943A, #D9A84A);
+  border-radius: 10px;
+  padding: 12px 22px;
+  text-decoration: none;
+  box-shadow: 0 4px 16px rgba(201,148,58,0.3);
+}
+
+.statCard {
+  background: #fff;
+  border: 1px solid rgba(26,60,46,0.08);
+}
+
+.statIconWrap {
+  width: 48px;
+  height: 48px;
+  background: rgba(26,60,46,0.08);
+}
+
+.statValue {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 30px;
+  font-weight: 700;
+  color: #1A3C2E;
+  line-height: 1;
+}
+
+.statLabel {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: rgba(28,28,28,0.5);
+}
+
+.tabBtn {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 10px 20px;
+  cursor: pointer;
+  border: 1px solid rgba(26,60,46,0.12);
+}
+
+.tabActive {
+  background: #1A3C2E;
+  color: #fff;
+}
+
+.tabInactive {
+  background: #fff;
+  color: #1A3C2E;
+}
+
+.listingCard {
+  background: #fff;
+  border: 1px solid rgba(26,60,46,0.08);
+}
+
+.listingImage {
+  height: 160px;
+}
+
+.listingStatus {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1A3C2E;
+  background: rgba(255,255,255,0.92);
+}
+
+.listingTitle {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1C1C1C;
+}
+
+.listingMeta {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: rgba(28,28,28,0.55);
+}
+
+.listingPrice {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #C9943A;
+}
+
+.listingPeriod {
+  font-size: 12px;
+  color: rgba(28,28,28,0.45);
+  font-family: 'DM Sans', sans-serif;
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #F7F3EC;
+  border: 1px solid rgba(26,60,46,0.1);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.iconBtn:hover {
+  background: #EFE7D8;
+}
+
+.reservationCard {
+  background: #fff;
+  border: 1px solid rgba(26,60,46,0.08);
+}
+
+.reservationTitle {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1C1C1C;
+}
+
+.reservationMeta {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: rgba(28,28,28,0.6);
+}
+
+.reservationPrice {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #C9943A;
+}
+
+.btnOutline {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #C4622D;
+  background: none;
+  border: 1.5px solid rgba(196,98,45,0.4);
+  border-radius: 8px;
+  padding: 9px 18px;
+  cursor: pointer;
+}
+
+.divider {
+  border-top: 1px solid rgba(26,60,46,0.07);
+}
+
+.emptyCard {
+  background: #fff;
+  border: 1px solid rgba(26,60,46,0.08);
+}
+
+.emptyTitle {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 26px;
+  color: #1A3C2E;
+}
+
+.emptyText {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: rgba(28,28,28,0.55);
+}
+
+.emptyLink {
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  color: #1A3C2E;
+  background: linear-gradient(135deg, #C9943A, #D9A84A);
+  border-radius: 10px;
+  padding: 12px 28px;
+  text-decoration: none;
+}
+
+.statusBadge {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}

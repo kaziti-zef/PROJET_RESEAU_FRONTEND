@@ -1,0 +1,270 @@
+/* Search page */
+
+.pageWrap {
+  background: #F7F3EC;
+  min-height: 100vh;
+  padding-top: 72px;
+}
+
+.banner {
+  background: #1A3C2E;
+  padding: 28px 0;
+}
+
+.bannerInner {
+  max-width: 1440px;
+}
+
+.pageTitle {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 36px;
+  font-weight: 600;
+  color: #F7F3EC;
+}
+
+.pageCount {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: rgba(247,243,236,0.6);
+  margin-top: 4px;
+}
+
+.sortSelect {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(201,148,58,0.35);
+  border-radius: 8px;
+  color: #F7F3EC;
+  padding: 9px 14px;
+  cursor: pointer;
+  outline: none;
+}
+
+.mobileFilterBtn {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1A3C2E;
+  background: linear-gradient(135deg, #C9943A, #D9A84A);
+  border: none;
+  border-radius: 8px;
+  padding: 9px 16px;
+  cursor: pointer;
+}
+
+.drawerOverlay {
+  background: rgba(0,0,0,0.5);
+}
+
+.drawerPanel {
+  background: #fff;
+}
+
+.mainContent {
+  max-width: 1440px;
+}
+
+.sidebar {
+  width: 280px;
+  background: #fff;
+  border: 1px solid rgba(26,60,46,0.08);
+  border-radius: 16px;
+  height: fit-content;
+  position: sticky;
+  top: 100px;
+}
+
+.sidebarTitle {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1C1C1C;
+}
+
+.filterTitle {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1C1C1C;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.filterLabel {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: rgba(28,28,28,0.75);
+}
+
+.filterRange {
+  accent-color: #C9943A;
+  cursor: pointer;
+}
+
+.checkbox {
+  accent-color: #1A3C2E;
+  width: 16px;
+  height: 16px;
+}
+
+.resetBtn {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #C4622D;
+  background: none;
+  border: 1px solid rgba(196,98,45,0.3);
+  border-radius: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.resultCard {
+  background: #fff;
+  border: 1px solid rgba(26,60,46,0.08);
+  box-shadow: 0 2px 16px rgba(26,60,46,0.06);
+}
+
+.resultImage {
+  width: 280px;
+  min-height: 200px;
+}
+
+.resultBadge {
+  background: #C4622D;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.resultHotel {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  font-size: 13px;
+  color: #C9943A;
+}
+
+.resultName {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1C1C1C;
+}
+
+.resultLocation {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: rgba(28,28,28,0.5);
+}
+
+.resultDesc {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: rgba(28,28,28,0.6);
+  line-height: 1.6;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.resultAmenity {
+  background: rgba(26,60,46,0.06);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: rgba(28,28,28,0.65);
+}
+
+.resultDivider {
+  border-top: 1px solid rgba(26,60,46,0.07);
+}
+
+.resultRating {
+  background: linear-gradient(135deg, #C9943A, #D9A84A);
+}
+
+.resultRatingText {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1A3C2E;
+}
+
+.resultReviews {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: rgba(28,28,28,0.45);
+}
+
+.resultPrice {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #C9943A;
+  line-height: 1;
+}
+
+.resultPeriod {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: rgba(28,28,28,0.4);
+}
+
+.viewBtn {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1A3C2E;
+  background: linear-gradient(135deg, #C9943A, #D9A84A);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 22px;
+  cursor: pointer;
+  box-shadow: 0 3px 12px rgba(201,148,58,0.3);
+  white-space: nowrap;
+}
+
+.priceLabel {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: rgba(28,28,28,0.5);
+}
+
+.priceValue {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #C9943A;
+}
+
+.emptyTitle {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 28px;
+  font-weight: 600;
+  color: #1A3C2E;
+}
+
+.emptyText {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  color: rgba(28,28,28,0.5);
+}
+
+.drawerTitle {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: #1A3C2E;
+}
+
+.drawerClose {
+  background: none;
+  border: none;
+  cursor: pointer;
+}

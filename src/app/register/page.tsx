@@ -1,7 +1,4 @@
 "use client";
-// ============================================================
-//  KamerStay — app/register/page.tsx  (Inscription)
-// ============================================================
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,6 +7,7 @@ import { MapPin, Mail, Lock, User as UserIcon, Building2 } from "lucide-react";
 import { register, type Role } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
+import styles from "./register.module.css";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -37,53 +35,47 @@ export default function RegisterPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #1A3C2E 0%, #2A5C44 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: "100px 20px 40px" }}>
-      <div className="w-full" style={{ maxWidth: "480px", background: "#fff", borderRadius: "20px", padding: "40px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+    <div className={styles.wrapper}>
+      <div className={`w-full ${styles.card}`}>
         <div className="flex items-center gap-2 justify-center mb-6">
-          <div className="flex items-center justify-center rounded-full" style={{ width: 40, height: 40, background: "linear-gradient(135deg, #C9943A, #D9A84A)" }}><MapPin size={20} color="#1A3C2E" strokeWidth={2.5} /></div>
-          <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "28px", fontWeight: 700, color: "#1A3C2E" }}>Kamer<span style={{ color: "#C9943A" }}>Stay</span></span>
+          <div className={`flex items-center justify-center rounded-full ${styles.logoIcon}`}><MapPin size={20} color="#1A3C2E" strokeWidth={2.5} /></div>
+          <span className={styles.logoText}>Kamer<span className={styles.logoAccent}>Stay</span></span>
         </div>
-        <h1 className="text-center mb-1" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "34px", fontWeight: 600, color: "#1A3C2E" }}>Créer un compte</h1>
-        <p className="text-center mb-7" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "14px", color: "rgba(28,28,28,0.55)" }}>Rejoignez KamerStay en quelques secondes.</p>
+        <h1 className={`text-center mb-1 ${styles.title}`}>Créer un compte</h1>
+        <p className={`text-center mb-7 ${styles.subtitle}`}>Rejoignez KamerStay en quelques secondes.</p>
 
-        {/* Sélecteur de rôle */}
         <div className="grid grid-cols-2 gap-3 mb-5">
           {([
             { v: "CLIENT" as Role, label: "Voyageur", desc: "Je réserve des chambres" },
             { v: "HOTE" as Role, label: "Hôte", desc: "Je publie des annonces" },
           ]).map((opt) => (
-            <button key={opt.v} type="button" onClick={() => setRole(opt.v)} style={{ textAlign: "left", padding: "12px 14px", borderRadius: 12, cursor: "pointer", background: role === opt.v ? "rgba(201,148,58,0.12)" : "#F7F3EC", border: role === opt.v ? "2px solid #C9943A" : "2px solid transparent" }}>
-              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700, color: "#1A3C2E" }}>{opt.label}</p>
-              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "rgba(28,28,28,0.55)" }}>{opt.desc}</p>
+            <button key={opt.v} type="button" onClick={() => setRole(opt.v)}
+              className={`${styles.roleBtn} ${role === opt.v ? styles.roleBtnActive : styles.roleBtnInactive}`}>
+              <p className={styles.roleLabel}>{opt.label}</p>
+              <p className={styles.roleDesc}>{opt.desc}</p>
             </button>
           ))}
         </div>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3">
-            <label className="auth-field"><span className="auth-label">Prénom</span><div className="auth-input-wrap"><UserIcon size={16} color="#C9943A" /><input required value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Amina" /></div></label>
-            <label className="auth-field"><span className="auth-label">Nom</span><div className="auth-input-wrap"><input required value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Kouam" /></div></label>
+            <label className={styles.field}><span className={styles.label}>Prénom</span><div className={styles.inputWrap}><UserIcon size={16} color="#C9943A" /><input required value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Amina" /></div></label>
+            <label className={styles.field}><span className={styles.label}>Nom</span><div className={styles.inputWrap}><input required value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Kouam" /></div></label>
           </div>
-          <label className="auth-field"><span className="auth-label">Email</span><div className="auth-input-wrap"><Mail size={16} color="#C9943A" /><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@email.com" /></div></label>
-          <label className="auth-field"><span className="auth-label">Mot de passe</span><div className="auth-input-wrap"><Lock size={16} color="#C9943A" /><input type="password" required minLength={6} value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} placeholder="•••••• (min. 6 caractères)" /></div></label>
+          <label className={styles.field}><span className={styles.label}>Email</span><div className={styles.inputWrap}><Mail size={16} color="#C9943A" /><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@email.com" /></div></label>
+          <label className={styles.field}><span className={styles.label}>Mot de passe</span><div className={styles.inputWrap}><Lock size={16} color="#C9943A" /><input type="password" required minLength={6} value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} placeholder="•••••• (min. 6 caractères)" /></div></label>
           {role === "HOTE" && (
-            <label className="auth-field"><span className="auth-label">Raison sociale</span><div className="auth-input-wrap"><Building2 size={16} color="#C9943A" /><input required value={raisonSociale} onChange={(e) => setRaisonSociale(e.target.value)} placeholder="Mont-Cameroun Lodge" /></div></label>
+            <label className={styles.field}><span className={styles.label}>Raison sociale</span><div className={styles.inputWrap}><Building2 size={16} color="#C9943A" /><input required value={raisonSociale} onChange={(e) => setRaisonSociale(e.target.value)} placeholder="Mont-Cameroun Lodge" /></div></label>
           )}
-          <button type="submit" disabled={loading} style={{ marginTop: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700, color: "#1A3C2E", background: "linear-gradient(135deg, #C9943A, #D9A84A)", border: "none", borderRadius: 10, padding: 14, cursor: loading ? "wait" : "pointer", opacity: loading ? 0.7 : 1, boxShadow: "0 4px 18px rgba(201,148,58,0.35)" }}>
+          <button type="submit" disabled={loading} className={styles.submitBtn}>
             {loading ? "Création…" : "Créer mon compte"}
           </button>
         </form>
 
-        <p className="text-center mt-6" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "14px", color: "rgba(28,28,28,0.6)" }}>
-          Déjà inscrit ? <Link href="/login" style={{ color: "#C9943A", fontWeight: 600, textDecoration: "none" }}>Se connecter</Link>
+        <p className={`text-center mt-6 ${styles.footerText}`}>
+          Déjà inscrit ? <Link href="/login" className={styles.footerLink}>Se connecter</Link>
         </p>
       </div>
-      <style>{`
-        .auth-field { display:flex; flex-direction:column; gap:6px; }
-        .auth-label { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:600; color:#1A3C2E; text-transform:uppercase; letter-spacing:0.06em; }
-        .auth-input-wrap { display:flex; align-items:center; gap:8px; background:#F7F3EC; border:1px solid rgba(26,60,46,0.15); border-radius:10px; padding:11px 14px; }
-        .auth-input-wrap input { flex:1; border:none; outline:none; background:transparent; font-family:'DM Sans',sans-serif; font-size:14px; color:#1C1C1C; }
-      `}</style>
     </div>
   );
 }

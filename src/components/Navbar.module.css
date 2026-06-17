@@ -1,0 +1,133 @@
+/* Navbar styles */
+
+.header {
+  transition: all 0.5s;
+}
+
+.headerScrolled {
+  background: rgba(26, 60, 46, 0.97);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(201,148,58,0.2);
+  box-shadow: 0 4px 30px rgba(0,0,0,0.3);
+}
+
+.headerTransparent {
+  background: transparent;
+}
+
+.container {
+  max-width: 1440px;
+  height: 72px;
+}
+
+.logoIcon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #C9943A, #D9A84A);
+}
+
+.logoText {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: #F7F3EC;
+  letter-spacing: 0.02em;
+}
+
+.logoAccent {
+  color: #C9943A;
+}
+
+.navLink {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.navLink:hover {
+  color: #C9943A !important;
+}
+
+.pillOutline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #F7F3EC;
+  background: none;
+  border: 1px solid rgba(247,243,236,0.35);
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.pillOutline:hover {
+  border-color: #C9943A;
+  color: #C9943A;
+}
+
+.pillGold {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1A3C2E;
+  background: linear-gradient(135deg, #C9943A, #D9A84A);
+  border: none;
+  border-radius: 6px;
+  padding: 9px 20px;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 2px 12px rgba(201,148,58,0.35);
+  transition: all 0.2s;
+}
+
+.pillGold:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(201,148,58,0.5);
+}
+
+.notifBadge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #C4622D;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobileMenu {
+  background: rgba(26,60,46,0.98);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(201,148,58,0.2);
+}
+
+.mobileLink {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  color: #F7F3EC;
+  text-decoration: none;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.hamburgerBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+}

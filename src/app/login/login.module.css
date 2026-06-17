@@ -1,0 +1,124 @@
+/* Login page */
+
+.wrapper {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1A3C2E 0%, #2A5C44 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 20px 40px;
+}
+
+.card {
+  max-width: 440px;
+  background: #fff;
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.logoIcon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #C9943A, #D9A84A);
+}
+
+.logoText {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1A3C2E;
+}
+
+.logoAccent {
+  color: #C9943A;
+}
+
+.title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 34px;
+  font-weight: 600;
+  color: #1A3C2E;
+}
+
+.subtitle {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: rgba(28,28,28,0.55);
+}
+
+.submitBtn {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1A3C2E;
+  background: linear-gradient(135deg, #C9943A, #D9A84A);
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(201,148,58,0.35);
+}
+
+.submitBtn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.footerText {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: rgba(28,28,28,0.6);
+}
+
+.footerLink {
+  color: #C9943A;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1A3C2E;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.inputWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #F7F3EC;
+  border: 1px solid rgba(26,60,46,0.15);
+  border-radius: 10px;
+  padding: 11px 14px;
+}
+
+.inputWrap input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: #1C1C1C;
+}
+
+.inputWrap select {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: #1C1C1C;
+  cursor: pointer;
+}
