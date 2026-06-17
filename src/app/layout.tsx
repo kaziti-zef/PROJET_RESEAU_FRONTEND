@@ -13,18 +13,26 @@ import Navbar from "@/components/Navbar";
 import ToastContainer from "@/components/ToastContainer";
 
 // ── Polices Google Fonts (chargées via Next.js — optimisé) ─
+import { Cormorant_Garamond, DM_Sans, Playfair_Display } from "next/font/google";
 
-const inter = Inter({
+const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-display",
+  weight: ["400", "600", "700"],
+  style: ["normal", "italic"],
   display: "swap",
 });
-
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+});
 const playfair = Playfair_Display({
   subsets: ["latin"],
-  variable: "--font-playfair",
+  variable: "--font-accent",
+  weight: ["400", "600"],
+  style: ["normal", "italic"],
   display: "swap",
-  weight: ["500", "700"],
 });
 
 // ── Métadonnées SEO (Next.js App Router) ───────────────────
