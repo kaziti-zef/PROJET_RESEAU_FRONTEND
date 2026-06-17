@@ -5,7 +5,7 @@
 //  Pré-sélection du rôle via ?role=HOTE dans l'URL
 // ============================================================
 
-import { useState, FormEvent, useEffect } from "react";
+import { useState, FormEvent, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,7 +20,7 @@ import { isAuthenticated, isTokenExpired } from "@/lib/auth";
 type Role = "LOCATAIRE" | "HOTE";
 
 interface FormData {
-  nom:           string;
+  nom:          string;
   prenom:        string;
   email:         string;
   telephone:     string;
@@ -32,10 +32,10 @@ interface FormData {
 type FormErrors = Partial<Record<keyof FormData | "form", string>>;
 
 // ══════════════════════════════════════════════════════════
-//  PAGE REGISTER
+//  COMPOSANT DU FORMULAIRE INTERNE (Utilise useSearchParams)
 // ══════════════════════════════════════════════════════════
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const { setSession } = useAuth();
@@ -121,7 +121,7 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!validate()) return;
 
-    setLoading(true);
+    loading || setLoading(true);
     setErrors({});
 
     const { data, error } = await register({
@@ -177,10 +177,280 @@ export default function RegisterPage() {
 
   const pwdStrength = getPasswordStrength();
 
-  // ══════════════════════════════════════════════════════
-  //  RENDU
-  // ══════════════════════════════════════════════════════
+  return (
+    <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      {/* Sélecteur de rôle intégré au formulaire pour le cycle d'état */}
+      <div className="mb-7">
+        <p className="text-sm font-semibold text-gray-700 mb-3">
+          Je souhaite…
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {(["LOCATAIRE", "HOTE"] as Role[]).map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => update("role", r)}
+              className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2
+                          transition-all text-sm font-semibold
+                          ${form.role === r
+                            ? "border-red-500 bg-red-50 text-red-600"
+                            : "border-gray-200 text-gray-500 hover:border-gray-300"
+                          }`}
+            >
+              <span className="text-2xl">
+                {r === "LOCATAIRE" ? "🔍" : "🏠"}
+              </span>
+              <span>
+                {r === "LOCATAIRE" ? "Louer une chambre" : "Proposer ma chambre"}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
 
+      {/* Erreur globale */}
+      {errors.form && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl
+                        text-sm text-red-700 font-medium">
+          ⚠️ {errors.form}
+        </div>
+      )}
+
+      {/* Prénom + Nom */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+            Prénom <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={form.prenom}
+            onChange={(e) => update("prenom", e.target.value)}
+            placeholder="Jean"
+            autoComplete="given-name"
+            className={`w-full px-4 py-3 border rounded-xl text-sm outline-none
+                        transition-colors placeholder-gray-300 text-gray-800
+                        ${errors.prenom
+                          ? "border-red-400 focus:border-red-500"
+                          : "border-gray-200 focus:border-red-400"}`}
+          />
+          {errors.prenom && (
+            <p className="text-red-500 text-xs mt-1">{errors.prenom}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+            Nom <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={form.nom}
+            onChange={(e) => update("nom", e.target.value)}
+            placeholder="Dupont"
+            autoComplete="family-name"
+            className={`w-full px-4 py-3 border rounded-xl text-sm outline-none
+                        transition-colors placeholder-gray-300 text-gray-800
+                        ${errors.nom
+                          ? "border-red-400 focus:border-red-500"
+                          : "border-gray-200 focus:border-red-400"}`}
+          />
+          {errors.nom && (
+            <p className="text-red-500 text-xs mt-1">{errors.nom}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Email */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          Adresse email <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="email"
+          value={form.email}
+          onChange={(e) => update("email", e.target.value)}
+          placeholder="votre@email.com"
+          autoComplete="email"
+          className={`w-full px-4 py-3 border rounded-xl text-sm outline-none
+                      transition-colors placeholder-gray-300 text-gray-800
+                      ${errors.email
+                        ? "border-red-400 focus:border-red-500"
+                        : "border-gray-200 focus:border-red-400"}`}
+        />
+        {errors.email && (
+          <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+        )}
+      </div>
+
+      {/* Téléphone */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          Téléphone
+          <span className="text-gray-400 font-normal ml-1">(optionnel)</span>
+        </label>
+        <input
+          type="tel"
+          value={form.telephone}
+          onChange={(e) => update("telephone", e.target.value)}
+          placeholder="+237 6XX XXX XXX"
+          autoComplete="tel"
+          className={`w-full px-4 py-3 border rounded-xl text-sm outline-none
+                      transition-colors placeholder-gray-300 text-gray-800
+                      ${errors.telephone
+                        ? "border-red-400 focus:border-red-500"
+                        : "border-gray-200 focus:border-red-400"}`}
+        />
+        {errors.telephone && (
+          <p className="text-red-500 text-xs mt-1">{errors.telephone}</p>
+        )}
+      </div>
+
+      {/* Mot de passe */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          Mot de passe <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <input
+            type={showPwd ? "text" : "password"}
+            value={form.mot_de_passe}
+            onChange={(e) => update("mot_de_passe", e.target.value)}
+            placeholder="Min. 8 car., 1 majuscule, 1 chiffre"
+            autoComplete="new-password"
+            className={`w-full px-4 py-3 pr-12 border rounded-xl text-sm
+                        outline-none transition-colors placeholder-gray-300
+                        text-gray-800
+                        ${errors.mot_de_passe
+                          ? "border-red-400 focus:border-red-500"
+                          : "border-gray-200 focus:border-red-400"}`}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPwd(!showPwd)}
+            className="absolute right-3 top-1/2 -translate-y-1/2
+                       text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label={showPwd ? "Masquer" : "Afficher"}
+          >
+            {showPwd ? "🙈" : "👁️"}
+          </button>
+        </div>
+
+        {/* Barre de force */}
+        {form.mot_de_passe && (
+          <div className="mt-2">
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full transition-all duration-300
+                              ${pwdStrength.color} ${pwdStrength.width}`} />
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Force : <span className="font-medium">{pwdStrength.label}</span>
+            </p>
+          </div>
+        )}
+
+        {errors.mot_de_passe && (
+          <p className="text-red-500 text-xs mt-1">{errors.mot_de_passe}</p>
+        )}
+      </div>
+
+      {/* Confirmation */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          Confirmer le mot de passe <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <input
+            type={showConf ? "text" : "password"}
+            value={form.confirmation}
+            onChange={(e) => update("confirmation", e.target.value)}
+            placeholder="••••••••"
+            autoComplete="new-password"
+            className={`w-full px-4 py-3 pr-12 border rounded-xl text-sm
+                        outline-none transition-colors placeholder-gray-300
+                        text-gray-800
+                        ${errors.confirmation
+                          ? "border-red-400 focus:border-red-500"
+                          : form.confirmation && form.confirmation === form.mot_de_passe
+                            ? "border-green-400"
+                            : "border-gray-200 focus:border-red-400"}`}
+          />
+          <button
+            type="button"
+            onClick={() => setShowConf(!showConf)}
+            className="absolute right-3 top-1/2 -translate-y-1/2
+                       text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label={showConf ? "Masquer" : "Afficher"}
+          >
+            {showConf ? "🙈" : "👁️"}
+          </button>
+          {/* Indicateur correspondance */}
+          {form.confirmation && form.confirmation === form.mot_de_passe && (
+            <span className="absolute right-10 top-1/2 -translate-y-1/2
+                             text-green-500 text-sm">
+              ✓
+            </span>
+          )}
+        </div>
+        {errors.confirmation && (
+          <p className="text-red-500 text-xs mt-1">{errors.confirmation}</p>
+        )}
+      </div>
+
+      {/* Récapitulatif rôle */}
+      <div className={`p-3 rounded-xl text-sm border
+                      ${form.role === "HOTE"
+                        ? "bg-amber-50 border-amber-200 text-amber-800"
+                        : "bg-blue-50 border-blue-200 text-blue-800"}`}>
+        {form.role === "HOTE" ? (
+          <p>🏠 Vous créez un compte <strong>Hôte</strong> — vous pourrez publier
+             et gérer vos annonces depuis votre tableau de bord.</p>
+        ) : (
+          <p>🔍 Vous créez un compte <strong>Locataire</strong> — vous pourrez
+             rechercher et réserver des chambres.</p>
+        )}
+      </div>
+
+      {/* Bouton inscription */}
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full bg-red-500 hover:bg-red-600 disabled:bg-gray-300
+                   disabled:cursor-not-allowed text-white font-bold py-3
+                   rounded-xl transition-colors text-sm mt-2"
+      >
+        {loading ? (
+          <span className="flex items-center justify-center gap-2">
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10"
+                      stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8H4z"/>
+            </svg>
+            Création du compte…
+          </span>
+        ) : (
+          `Créer mon compte ${form.role === "HOTE" ? "hôte" : "locataire"}`
+        )}
+      </button>
+
+      {/* Lien connexion */}
+      <p className="text-center text-sm text-gray-500 pt-1">
+        Déjà un compte ?{" "}
+        <Link href="/login"
+              className="text-red-500 hover:text-red-600 font-semibold">
+          Se connecter
+        </Link>
+      </p>
+    </form>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+//  PAGE REGISTER PRINCIPALE (Avec barrière Suspense)
+// ══════════════════════════════════════════════════════════
+
+export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-lg">
@@ -195,276 +465,19 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {/* Carte */}
+        {/* Carte contenant le formulaire sous Suspense */}
         <div className="bg-white rounded-2xl shadow-lg p-8">
-
-          {/* ── SÉLECTEUR DE RÔLE ── */}
-          <div className="mb-7">
-            <p className="text-sm font-semibold text-gray-700 mb-3">
-              Je souhaite…
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              {(["LOCATAIRE", "HOTE"] as Role[]).map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => update("role", r)}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2
-                              transition-all text-sm font-semibold
-                              ${form.role === r
-                                ? "border-red-500 bg-red-50 text-red-600"
-                                : "border-gray-200 text-gray-500 hover:border-gray-300"
-                              }`}
-                >
-                  <span className="text-2xl">
-                    {r === "LOCATAIRE" ? "🔍" : "🏠"}
-                  </span>
-                  <span>
-                    {r === "LOCATAIRE" ? "Louer une chambre" : "Proposer ma chambre"}
-                  </span>
-                </button>
-              ))}
+          <Suspense fallback={
+            <div className="flex flex-col items-center justify-center py-12 gap-3 text-sm text-gray-500">
+              <svg className="animate-spin h-8 w-8 text-red-500" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+              <span>Chargement du formulaire d'inscription...</span>
             </div>
-          </div>
-
-          {/* ── FORMULAIRE ── */}
-          <form onSubmit={handleSubmit} noValidate className="space-y-4">
-
-            {/* Erreur globale */}
-            {errors.form && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl
-                              text-sm text-red-700 font-medium">
-                ⚠️ {errors.form}
-              </div>
-            )}
-
-            {/* Prénom + Nom */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Prénom <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.prenom}
-                  onChange={(e) => update("prenom", e.target.value)}
-                  placeholder="Jean"
-                  autoComplete="given-name"
-                  className={`w-full px-4 py-3 border rounded-xl text-sm outline-none
-                              transition-colors placeholder-gray-300 text-gray-800
-                              ${errors.prenom
-                                ? "border-red-400 focus:border-red-500"
-                                : "border-gray-200 focus:border-red-400"}`}
-                />
-                {errors.prenom && (
-                  <p className="text-red-500 text-xs mt-1">{errors.prenom}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Nom <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.nom}
-                  onChange={(e) => update("nom", e.target.value)}
-                  placeholder="Dupont"
-                  autoComplete="family-name"
-                  className={`w-full px-4 py-3 border rounded-xl text-sm outline-none
-                              transition-colors placeholder-gray-300 text-gray-800
-                              ${errors.nom
-                                ? "border-red-400 focus:border-red-500"
-                                : "border-gray-200 focus:border-red-400"}`}
-                />
-                {errors.nom && (
-                  <p className="text-red-500 text-xs mt-1">{errors.nom}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                Adresse email <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => update("email", e.target.value)}
-                placeholder="votre@email.com"
-                autoComplete="email"
-                className={`w-full px-4 py-3 border rounded-xl text-sm outline-none
-                            transition-colors placeholder-gray-300 text-gray-800
-                            ${errors.email
-                              ? "border-red-400 focus:border-red-500"
-                              : "border-gray-200 focus:border-red-400"}`}
-              />
-              {errors.email && (
-                <p className="text-red-500 text-xs mt-1">{errors.email}</p>
-              )}
-            </div>
-
-            {/* Téléphone */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                Téléphone
-                <span className="text-gray-400 font-normal ml-1">(optionnel)</span>
-              </label>
-              <input
-                type="tel"
-                value={form.telephone}
-                onChange={(e) => update("telephone", e.target.value)}
-                placeholder="+237 6XX XXX XXX"
-                autoComplete="tel"
-                className={`w-full px-4 py-3 border rounded-xl text-sm outline-none
-                            transition-colors placeholder-gray-300 text-gray-800
-                            ${errors.telephone
-                              ? "border-red-400 focus:border-red-500"
-                              : "border-gray-200 focus:border-red-400"}`}
-              />
-              {errors.telephone && (
-                <p className="text-red-500 text-xs mt-1">{errors.telephone}</p>
-              )}
-            </div>
-
-            {/* Mot de passe */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                Mot de passe <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type={showPwd ? "text" : "password"}
-                  value={form.mot_de_passe}
-                  onChange={(e) => update("mot_de_passe", e.target.value)}
-                  placeholder="Min. 8 car., 1 majuscule, 1 chiffre"
-                  autoComplete="new-password"
-                  className={`w-full px-4 py-3 pr-12 border rounded-xl text-sm
-                              outline-none transition-colors placeholder-gray-300
-                              text-gray-800
-                              ${errors.mot_de_passe
-                                ? "border-red-400 focus:border-red-500"
-                                : "border-gray-200 focus:border-red-400"}`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPwd(!showPwd)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2
-                             text-gray-400 hover:text-gray-600 transition-colors"
-                  aria-label={showPwd ? "Masquer" : "Afficher"}
-                >
-                  {showPwd ? "🙈" : "👁️"}
-                </button>
-              </div>
-
-              {/* Barre de force */}
-              {form.mot_de_passe && (
-                <div className="mt-2">
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all duration-300
-                                    ${pwdStrength.color} ${pwdStrength.width}`} />
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Force : <span className="font-medium">{pwdStrength.label}</span>
-                  </p>
-                </div>
-              )}
-
-              {errors.mot_de_passe && (
-                <p className="text-red-500 text-xs mt-1">{errors.mot_de_passe}</p>
-              )}
-            </div>
-
-            {/* Confirmation */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                Confirmer le mot de passe <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type={showConf ? "text" : "password"}
-                  value={form.confirmation}
-                  onChange={(e) => update("confirmation", e.target.value)}
-                  placeholder="••••••••"
-                  autoComplete="new-password"
-                  className={`w-full px-4 py-3 pr-12 border rounded-xl text-sm
-                              outline-none transition-colors placeholder-gray-300
-                              text-gray-800
-                              ${errors.confirmation
-                                ? "border-red-400 focus:border-red-500"
-                                : form.confirmation && form.confirmation === form.mot_de_passe
-                                  ? "border-green-400"
-                                  : "border-gray-200 focus:border-red-400"}`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConf(!showConf)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2
-                             text-gray-400 hover:text-gray-600 transition-colors"
-                  aria-label={showConf ? "Masquer" : "Afficher"}
-                >
-                  {showConf ? "🙈" : "👁️"}
-                </button>
-                {/* Indicateur correspondance */}
-                {form.confirmation && form.confirmation === form.mot_de_passe && (
-                  <span className="absolute right-10 top-1/2 -translate-y-1/2
-                                   text-green-500 text-sm">
-                    ✓
-                  </span>
-                )}
-              </div>
-              {errors.confirmation && (
-                <p className="text-red-500 text-xs mt-1">{errors.confirmation}</p>
-              )}
-            </div>
-
-            {/* Récapitulatif rôle */}
-            <div className={`p-3 rounded-xl text-sm border
-                            ${form.role === "HOTE"
-                              ? "bg-amber-50 border-amber-200 text-amber-800"
-                              : "bg-blue-50 border-blue-200 text-blue-800"}`}>
-              {form.role === "HOTE" ? (
-                <p>🏠 Vous créez un compte <strong>Hôte</strong> — vous pourrez publier
-                   et gérer vos annonces depuis votre tableau de bord.</p>
-              ) : (
-                <p>🔍 Vous créez un compte <strong>Locataire</strong> — vous pourrez
-                   rechercher et réserver des chambres.</p>
-              )}
-            </div>
-
-            {/* Bouton inscription */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-red-500 hover:bg-red-600 disabled:bg-gray-300
-                         disabled:cursor-not-allowed text-white font-bold py-3
-                         rounded-xl transition-colors text-sm mt-2"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10"
-                            stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor"
-                          d="M4 12a8 8 0 018-8v8H4z"/>
-                  </svg>
-                  Création du compte…
-                </span>
-              ) : (
-                `Créer mon compte ${form.role === "HOTE" ? "hôte" : "locataire"}`
-              )}
-            </button>
-
-            {/* Lien connexion */}
-            <p className="text-center text-sm text-gray-500 pt-1">
-              Déjà un compte ?{" "}
-              <Link href="/login"
-                    className="text-red-500 hover:text-red-600 font-semibold">
-                Se connecter
-              </Link>
-            </p>
-          </form>
+          }>
+            <RegisterForm />
+          </Suspense>
         </div>
 
         {/* Mention sécurité */}

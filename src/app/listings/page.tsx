@@ -4,7 +4,7 @@
 //  Liste des annonces : filtres, recherche, pagination
 // ============================================================
 
-import { useState, useEffect, useCallback, FormEvent } from "react";
+import { useState, useEffect, useCallback, FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getAnnonces, Annonce } from "@/lib/api";
@@ -103,12 +103,12 @@ function SkeletonCard() {
 }
 
 // ══════════════════════════════════════════════════════════
-//  PAGE LISTINGS
+//  CONTENU DES ANNONCES (Utilise useSearchParams)
 // ══════════════════════════════════════════════════════════
 
 const PAGE_SIZE = 9;
 
-export default function ListingsPage() {
+function ListingsContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const { showToast } = useToast();
@@ -445,7 +445,7 @@ export default function ListingsPage() {
       {/* ── CTA HÔTE (si pas de résultats) ── */}
       {!loading && annonces.length === 0 && !hasFilters && (
         <div className="mt-12 bg-gradient-to-r from-gray-900 to-red-950
-                        rounded-2xl p-8 text-white text-center">
+                         rounded-2xl p-8 text-white text-center">
           <h3 className="font-playfair text-2xl font-bold mb-3">
             Soyez le premier à publier !
           </h3>
@@ -463,5 +463,23 @@ export default function ListingsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+//  EXPORT PRINCIPAL SÉCURISÉ (Suspense Boundary)
+// ══════════════════════════════════════════════════════════
+
+export default function ListingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 text-center text-gray-400 text-sm">
+          Chargement de l'espace de recherche...
+        </div>
+      }
+    >
+      <ListingsContent />
+    </Suspense>
   );
 }

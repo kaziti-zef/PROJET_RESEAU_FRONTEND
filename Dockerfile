@@ -18,7 +18,7 @@ WORKDIR /app
 # (optimise le cache Docker : rebuild seulement si package.json change)
 COPY package.json package-lock.json* ./
 
-RUN npm ci --only=production --frozen-lockfile
+RUN npm ci
 
 # ── Stage 2 : Build de l'application ───────────────────────
 FROM node:22-alpine AS builder

@@ -1,11 +1,10 @@
 // ============================================================
-//  NidiRoom — app/layout.tsx
-//  Layout racine : enveloppe TOUTES les pages de l'application
-//  Contient : métadonnées, polices, Navbar, Toast, Provider
+//   NidiRoom — app/layout.tsx
+//   Layout racine : enveloppe TOUTES les pages de l'application
+//   Contient : métadonnées, polices, Navbar, Toast, Provider
 // ============================================================
 
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
@@ -43,12 +42,12 @@ export const metadata: Metadata = {
     template: "%s | NidiRoom",   // ex: "Connexion | NidiRoom"
   },
   description:
-    "Plateforme de location de chambres entre particuliers. Trouvez, réservez et payez en toute sécurité.",
-  keywords: ["location", "chambre", "hébergement", "réservation", "particulier"],
+    "Plateforme de location de chambres de standing près de vos écoles. Trouvez, réservez et payez en toute sécurité.",
+  keywords: ["location", "chambre", "hébergement", "réservation", "étudiant", "Yaoundé", "Melen"],
   authors: [{ name: "Équipe NidiRoom" }],
   openGraph: {
-    title: "NidiRoom — Location de chambres entre particuliers",
-    description: "Des milliers de chambres vérifiées partout au pays.",
+    title: "NidiRoom — Logements étudiants de standing",
+    description: "Des milliers de chambres vérifiées autour de vos campus.",
     type: "website",
     locale: "fr_FR",
   },
@@ -64,9 +63,9 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${inter.variable} ${playfair.variable}`}
+      className={`${cormorant.variable} ${dmSans.variable} ${playfair.variable}`}
     >
-      <body className="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
+      <body className="bg-[#FAF9F6] text-gray-800 min-h-screen flex flex-col font-body">
         {/*
           ToastProvider  : gère les notifications toast (succès/erreur)
           AuthProvider   : gère la session utilisateur globalement
@@ -85,39 +84,39 @@ export default function RootLayout({
             </main>
 
             {/* Pied de page commun */}
-            <footer className="bg-gray-900 text-gray-400 py-10 mt-auto">
+            <footer className="bg-[#0B2516] text-[#FAF9F6]/80 py-10 mt-auto border-t border-[#C5A059]/20">
               <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div>
-                  <span className="font-playfair text-white text-xl font-bold">
-                    Nidi<span className="text-red-500">Room</span>
+                  <span className="font-display text-white text-2xl font-bold tracking-wide">
+                    Nidi<span className="text-[#C5A059]">Room</span>
                   </span>
-                  <p className="mt-3 text-sm leading-relaxed">
-                    La plateforme de location de chambres entre particuliers.
+                  <p className="mt-3 text-sm leading-relaxed text-[#FAF9F6]/70">
+                    La plateforme de location de chambres de standing près de vos écoles.
                     Sécurisée, rapide et fiable.
                   </p>
                 </div>
                 <div>
-                  <h4 className="text-white text-sm font-semibold uppercase tracking-wider mb-4">
+                  <h4 className="text-[#C5A059] text-sm font-semibold uppercase tracking-wider mb-4 font-display">
                     Navigation
                   </h4>
                   <ul className="space-y-2 text-sm">
-                    <li><a href="/listings" className="hover:text-white transition-colors">Annonces</a></li>
-                    <li><a href="/login" className="hover:text-white transition-colors">Connexion</a></li>
-                    <li><a href="/register" className="hover:text-white transition-colors">Inscription</a></li>
+                    <li><a href="/listings" className="hover:text-[#C5A059] transition-colors">Annonces</a></li>
+                    <li><a href="/login" className="hover:text-[#C5A059] transition-colors">Connexion</a></li>
+                    <li><a href="/register" className="hover:text-[#C5A059] transition-colors">Inscription</a></li>
                   </ul>
                 </div>
                 <div>
-                  <h4 className="text-white text-sm font-semibold uppercase tracking-wider mb-4">
+                  <h4 className="text-[#C5A059] text-sm font-semibold uppercase tracking-wider mb-4 font-display">
                     Mon espace
                   </h4>
                   <ul className="space-y-2 text-sm">
-                    <li><a href="/profile" className="hover:text-white transition-colors">Mon profil</a></li>
-                    <li><a href="/host/dashboard" className="hover:text-white transition-colors">Tableau de bord hôte</a></li>
-                    <li><a href="/reservations" className="hover:text-white transition-colors">Mes réservations</a></li>
+                    <li><a href="/profile" className="hover:text-[#C5A059] transition-colors">Mon profil</a></li>
+                    <li><a href="/host/dashboard" className="hover:text-[#C5A059] transition-colors">Tableau de bord hôte</a></li>
+                    <li><a href="/reservations" className="hover:text-[#C5A059] transition-colors">Mes réservations</a></li>
                   </ul>
                 </div>
               </div>
-              <div className="border-t border-gray-800 mt-8 pt-6 text-center text-xs">
+              <div className="border-t border-[#FAF9F6]/10 mt-8 pt-6 text-center text-xs text-[#FAF9F6]/50">
                 © {new Date().getFullYear()} NidiRoom — Projet Réseau. Tous droits réservés.
               </div>
             </footer>
