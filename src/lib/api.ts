@@ -15,7 +15,9 @@ export interface ApiResponse<T> {
   status: number;
 }
 
-export type Role = "CLIENT" | "HOTE";
+export type Role = "CLIENT" | "HOTE" | "ADMINISTRATEUR";
+
+export type StatutVerification = "NON_DEMANDE" | "EN_ATTENTE" | "APPROUVE" | "REJETE";
 
 export interface User {
   id: number;
@@ -24,6 +26,7 @@ export interface User {
   email: string;
   role: Role;
   raison_sociale?: string;
+  statut_verification?: StatutVerification;
 }
 
 /** Annonce telle que renvoyée par le backend (colonnes pg en minuscules). */
@@ -118,13 +121,16 @@ function token(): string | null {
 /** Normalise l'utilisateur renvoyé par le backend (typecompte → role). */
 export function normalizeUser(raw: Record<string, unknown>): User {
   const role = (raw.role || raw.typeCompte || raw.typecompte) as Role;
+  const normalizedRole: Role =
+    role === "HOTE" ? "HOTE" : role === "ADMINISTRATEUR" ? "ADMINISTRATEUR" : "CLIENT";
   return {
     id: Number(raw.id),
     nom: String(raw.nom ?? ""),
     prenom: String(raw.prenom ?? ""),
     email: String(raw.email ?? ""),
-    role: role === "HOTE" ? "HOTE" : "CLIENT",
+    role: normalizedRole,
     raison_sociale: (raw.raison_sociale as string) || undefined,
+    statut_verification: (raw.statut_verification as StatutVerification) || undefined,
   };
 }
 
@@ -315,4 +321,82 @@ export async function createAvis(payload: { reservation_id: number; note: number
 
 export async function getMesAvis() {
   return apiFetch<AvisItem[]>("/api/evaluations/mes-avis");
+}
+
+// ══════════════════════════════════════════════════════════
+//  DEVENIR HÔTE   (montées sur /api/utilisateurs)
+// ══════════════════════════════════════════════════════════
+
+/** Dépose la demande "devenir hôte" : téléphone, compte de paiement, photo CNI. */
+export async function demanderDevenirHote(form: FormData) {
+  return apiUpload<{ message: string; statut_verification: StatutVerification }>(
+    "/api/utilisateurs/devenir-hote",
+    "POST",
+    form
+  );
+}
+
+/** Statut courant de la demande "devenir hôte" de l'utilisateur connecté. */
+export async function getStatutVerification() {
+  return apiFetch<{ typecompte: Role; statut_verification: StatutVerification; telephone?: string }>(
+    "/api/utilisateurs/statut-verification"
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+//  ADMIN — UTILISATEURS   (montées sur /api/utilisateurs/admin)
+// ══════════════════════════════════════════════════════════
+
+export interface UtilisateurAdmin {
+  id: number;
+  email: string;
+  nom: string;
+  prenom: string;
+  typecompte: Role;
+  telephone?: string;
+  photo_cni?: string;
+  statut_verification: StatutVerification;
+  dateverification?: string;
+  compte_paiement_fournisseur?: string;
+  compte_paiement_identifiant?: string;
+}
+
+/** Liste des utilisateurs (Admin), filtrable par statut de vérification ou type de compte. */
+export async function getUtilisateursAdmin(params?: { statut_verification?: StatutVerification; typeCompte?: Role }) {
+  const query = params
+    ? "?" + new URLSearchParams(
+        Object.entries(params).filter(([, v]) => !!v) as [string, string][]
+      ).toString()
+    : "";
+  return apiFetch<UtilisateurAdmin[]>(`/api/utilisateurs/admin${query}`);
+}
+
+/** Approuve une demande "devenir hôte" (Admin). */
+export async function approuverUtilisateur(id: number) {
+  return apiFetch<{ message: string; utilisateur: UtilisateurAdmin }>(
+    `/api/utilisateurs/admin/${id}/approuver`,
+    { method: "PUT" }
+  );
+}
+
+/** Rejette une demande "devenir hôte" (Admin). */
+export async function rejeterUtilisateur(id: number) {
+  return apiFetch<{ message: string; utilisateur: UtilisateurAdmin }>(
+    `/api/utilisateurs/admin/${id}/rejeter`,
+    { method: "PUT" }
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+//  ADMIN — ANNONCES   (montées sur /api/admin/annonces)
+// ══════════════════════════════════════════════════════════
+
+/** Liste de toutes les annonces, tous statuts confondus (Admin). */
+export async function getAnnoncesAdmin() {
+  return apiFetch<Annonce[]>("/api/admin/annonces");
+}
+
+/** Supprime une annonce quel que soit son propriétaire (Admin). */
+export async function supprimerAnnonceAdmin(id: number) {
+  return apiFetch<{ message: string }>(`/api/admin/annonces/${id}`, { method: "DELETE" });
 }

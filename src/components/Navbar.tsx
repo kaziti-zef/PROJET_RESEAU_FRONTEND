@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, MapPin, Bell, LogOut, LayoutDashboard, CalendarCheck, User as UserIcon } from "lucide-react";
+import { Menu, X, MapPin, Bell, LogOut, LayoutDashboard, CalendarCheck, User as UserIcon, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { signOut } from "@/lib/auth";
@@ -39,7 +39,9 @@ export function Navbar() {
 
   const linkColor = "rgba(247,243,236,0.85)";
 
-  const spaceLink = user?.role === "HOTE"
+  const spaceLink = user?.role === "ADMINISTRATEUR"
+    ? { href: "/admin/dashboard", label: "Espace admin", Icon: ShieldCheck }
+    : user?.role === "HOTE"
     ? { href: "/host/dashboard", label: "Espace hôte", Icon: LayoutDashboard }
     : { href: "/reservations", label: "Mes réservations", Icon: CalendarCheck };
 
