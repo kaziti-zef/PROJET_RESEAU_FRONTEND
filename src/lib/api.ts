@@ -422,6 +422,22 @@ export async function getMonWallet() {
   return apiFetch<Wallet>("/api/wallet");
 }
 
+/** Recharger mon porte-monnaie (montant simulé). Renvoie le solde + l'historique à jour. */
+export async function rechargerWallet(montant: number) {
+  return apiFetch<Wallet & { message: string }>("/api/wallet/recharger", {
+    method: "POST",
+    body: JSON.stringify({ montant }),
+  });
+}
+
+/** Retirer du solde de mon porte-monnaie. Renvoie le solde + l'historique à jour. */
+export async function retirerWallet(montant: number) {
+  return apiFetch<Wallet & { message: string }>("/api/wallet/retirer", {
+    method: "POST",
+    body: JSON.stringify({ montant }),
+  });
+}
+
 // ══════════════════════════════════════════════════════════
 //  PARAMÈTRES PLATEFORME / FINANCE (O3, O4) — Admin / Super-admin
 // ══════════════════════════════════════════════════════════

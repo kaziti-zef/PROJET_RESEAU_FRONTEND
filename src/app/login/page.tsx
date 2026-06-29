@@ -36,7 +36,7 @@ function LoginInner() {
       <div className={`w-full ${styles.card}`}>
         <div className="flex items-center gap-2 justify-center mb-6">
           <div className={`flex items-center justify-center rounded-full ${styles.logoIcon}`}><MapPin size={20} color="#1A3C2E" strokeWidth={2.5} /></div>
-          <span className={styles.logoText}>Kamer<span className={styles.logoAccent}>Stay</span></span>
+          <span className={styles.logoText}>Room<span className={styles.logoAccent}>finder</span></span>
         </div>
         <h1 className={`text-center mb-1 ${styles.title}`}>Bon retour</h1>
         <p className={`text-center mb-8 ${styles.subtitle}`}>Connectez-vous pour réserver votre séjour.</p>

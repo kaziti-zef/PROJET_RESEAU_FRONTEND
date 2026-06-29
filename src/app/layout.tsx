@@ -1,5 +1,8 @@
 // ============================================================
 //  KamerStay — app/layout.tsx  (layout racine)
+//  Le Footer est masqué sur l'accueil (/) qui possède sa propre
+//  section #about. Sur toutes les autres pages, FooterConditional
+//  l'affiche normalement.
 // ============================================================
 
 import type { Metadata } from "next";
@@ -7,17 +10,17 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import FooterConditional from "@/components/FooterConditional";
 import ToastContainer from "@/components/ToastContainer";
 
 export const metadata: Metadata = {
   title: {
-    default: "KamerStay — Découvrez le Cameroun, une chambre à la fois",
+    default: "KamerStay — Découvrez le monde, une chambre à la fois",
     template: "%s | KamerStay",
   },
   description:
-    "Plateforme de réservation hôtelière de luxe au Cameroun. Trouvez, réservez et payez en FCFA en toute sécurité.",
-  keywords: ["location", "chambre", "hôtel", "réservation", "Cameroun", "FCFA"],
+    "Plateforme de réservation hôtelière internationale. Trouvez, réservez et payez en devise locale en toute sécurité.",
+  keywords: ["location", "chambre", "hôtel", "réservation", "hébergement", "voyage"],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -29,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="min-h-screen flex flex-col">
               <Navbar />
               <main className="flex-1">{children}</main>
-              <Footer />
+              <FooterConditional />
             </div>
             <ToastContainer />
           </AuthProvider>

@@ -1,8 +1,7 @@
 "use client";
 // ============================================================
 //  KamerStay — app/page.tsx  (Accueil)
-//  Hero + recherche, destinations, annonces (backend), atouts,
-//  témoignages, newsletter.
+//  Pays / villes / devises dynamiques (P1) — plus de fixtures CM
 // ============================================================
 
 import { useState, useEffect } from "react";
@@ -15,8 +14,7 @@ import { ImageWithFallback } from "@/components/ImageWithFallback";
 import {
   roomTypes, testimonials, formatPrix, fallbackRooms, annonceToRoom, type Room,
 } from "@/data/rooms";
-import { getAnnonces } from "@/lib/api";
-
+import { getAnnonces, getPays, getVilles, type Pays, type Ville } from "@/lib/api";
 
 const HERO_IMG = "https://images.unsplash.com/photo-1765910639954-27ae0c260586?w=1920&q=90";
 
@@ -94,12 +92,31 @@ function RoomCard({ room }: { room: Room }) {
   );
 }
 
+// ── Barre de recherche Hero (pays + villes dynamiques) ──────
 function HeroSearchBar() {
   const router = useRouter();
+  const [pays, setPays] = useState<Pays[]>([]);
+  const [villes, setVilles] = useState<Ville[]>([]);
+  const [selectedPays, setSelectedPays] = useState("");
   const [destination, setDestination] = useState("");
   const [checkin, setCheckin] = useState("");
   const [checkout, setCheckout] = useState("");
   const [guests, setGuests] = useState(2);
+
+  // Charger les pays au montage
+  useEffect(() => {
+    getPays().then(({ data }) => { if (data) setPays(data); });
+  }, []);
+
+  // Quand le pays change → recharger les villes
+  useEffect(() => {
+    setDestination("");
+    if (!selectedPays) {
+      getVilles().then(({ data }) => { if (data) setVilles(data); });
+    } else {
+      getVilles(selectedPays).then(({ data }) => { if (data) setVilles(data); });
+    }
+  }, [selectedPays]);
 
   const inputStyle: React.CSSProperties = {
     fontFamily: "'DM Sans', sans-serif", fontSize: "14px", background: "rgba(255,255,255,0.12)",
@@ -114,6 +131,7 @@ function HeroSearchBar() {
   function submit() {
     const p = new URLSearchParams();
     if (destination) p.set("city", destination);
+    if (selectedPays) p.set("pays", selectedPays);
     if (guests) p.set("guests", String(guests));
     if (checkin) p.set("checkin", checkin);
     if (checkout) p.set("checkout", checkout);
@@ -122,30 +140,44 @@ function HeroSearchBar() {
 
   return (
     <div>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+        {/* Pays */}
         <div>
-          <label style={labelStyle}>Destination</label>
-          <select value={destination} onChange={(e) => setDestination(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
-            <option value="" style={{ background: "#1A3C2E" }}>Choisir une ville...</option>
-            {["Yaoundé", "Douala", "Kribi", "Limbé", "Bafoussam", "Ngaoundéré", "Garoua"].map((c) => (
-              <option key={c} value={c} style={{ background: "#1A3C2E" }}>{c}</option>
+          <label style={labelStyle}>Pays</label>
+          <select value={selectedPays} onChange={(e) => setSelectedPays(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
+            <option value="" style={{ background: "#1A3C2E" }}>Tous les pays</option>
+            {pays.map((p) => (
+              <option key={p.code} value={p.code} style={{ background: "#1A3C2E" }}>{p.nom}</option>
             ))}
           </select>
         </div>
+        {/* Ville */}
+        <div>
+          <label style={labelStyle}>Ville</label>
+          <select value={destination} onChange={(e) => setDestination(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
+            <option value="" style={{ background: "#1A3C2E" }}>Toutes les villes</option>
+            {villes.map((v) => (
+              <option key={v.id} value={v.nom} style={{ background: "#1A3C2E" }}>{v.nom}</option>
+            ))}
+          </select>
+        </div>
+        {/* Arrivée */}
         <div>
           <label style={labelStyle}>Arrivée</label>
           <input type="date" value={checkin} onChange={(e) => setCheckin(e.target.value)} style={{ ...inputStyle, colorScheme: "dark" }} />
         </div>
+        {/* Départ */}
         <div>
           <label style={labelStyle}>Départ</label>
           <input type="date" value={checkout} onChange={(e) => setCheckout(e.target.value)} style={{ ...inputStyle, colorScheme: "dark" }} />
         </div>
+        {/* Voyageurs */}
         <div>
           <label style={labelStyle}>Voyageurs</label>
           <div className="flex items-center gap-2" style={{ ...inputStyle, display: "flex", alignItems: "center", padding: "6px 14px" }}>
             <button onClick={() => setGuests(Math.max(1, guests - 1))} style={{ background: "rgba(201,148,58,0.3)", border: "none", color: "#F7F3EC", borderRadius: "4px", width: "26px", height: "26px", cursor: "pointer", fontSize: "16px", lineHeight: 1 }}>−</button>
             <span className="flex-1 text-center" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "15px", color: "#F7F3EC" }}>{guests}</span>
-            <button onClick={() => setGuests(Math.min(10, guests + 1))} style={{ background: "rgba(201,148,58,0.3)", border: "none", color: "#F7F3EC", borderRadius: "4px", width: "26px", height: "26px", cursor: "pointer", fontSize: "16px", lineHeight: 1 }}>+</button>
+            <button onClick={() => setGuests(Math.min(20, guests + 1))} style={{ background: "rgba(201,148,58,0.3)", border: "none", color: "#F7F3EC", borderRadius: "4px", width: "26px", height: "26px", cursor: "pointer", fontSize: "16px", lineHeight: 1 }}>+</button>
           </div>
         </div>
       </div>
@@ -164,7 +196,6 @@ export default function HomePage() {
 
   useEffect(() => {
     (async () => {
-      // Hébergements en vedette = les mieux notés (point 7)
       const { data } = await getAnnonces({ limit: 6, tri: "populaire" });
       if (data?.annonces?.length) setDisplayRooms(data.annonces.map(annonceToRoom));
       else setDisplayRooms(fallbackRooms);
@@ -177,20 +208,20 @@ export default function HomePage() {
       {/* HERO */}
       <section className="relative flex flex-col items-center justify-center" style={{ minHeight: "100vh" }}>
         <div className="absolute inset-0">
-          <ImageWithFallback src={HERO_IMG} alt="Resort de luxe au Cameroun" className="w-full h-full object-cover" />
+          <ImageWithFallback src={HERO_IMG} alt="Hébergement de luxe" className="w-full h-full object-cover" />
           <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(26,60,46,0.55) 0%, rgba(26,60,46,0.45) 50%, rgba(26,60,46,0.75) 100%)" }} />
         </div>
-        <div className="relative z-10 flex flex-col items-center text-center px-4 w-full" style={{ maxWidth: "900px", paddingTop: "120px", paddingBottom: "60px" }}>
+        <div className="relative z-10 flex flex-col items-center text-center px-4 w-full" style={{ maxWidth: "1000px", paddingTop: "120px", paddingBottom: "60px" }}>
           <div className="mb-6 px-5 py-2 rounded-full" style={{ border: "1px solid rgba(201,148,58,0.6)", background: "rgba(201,148,58,0.12)", fontFamily: "'DM Sans', sans-serif", fontSize: "12px", fontWeight: 600, color: "#D9A84A", letterSpacing: "0.14em", textTransform: "uppercase" }}>
-            ✦ Bienvenue au Cameroun ✦
+            ✦ La plateforme de réservation locale ✦
           </div>
           <h1 className="mb-4" style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "clamp(52px, 8vw, 88px)", fontWeight: 600, color: "#F7F3EC", lineHeight: 1.05, letterSpacing: "-0.01em" }}>
-            Discover Cameroon,<br /><em>One Room at a Time</em>
+            Discover the World,<br /><em>One Room at a Time</em>
           </h1>
           <p className="mb-12" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "18px", color: "rgba(247,243,236,0.78)", lineHeight: 1.6, maxWidth: "500px" }}>
-            Luxe, confort & âme locale — <span style={{ color: "#D9A84A", fontWeight: 500 }}>à partir de 15 000 FCFA/nuit</span>
+            Luxe, confort & authenticité locale — des hébergements soigneusement sélectionnés à travers le monde.
           </p>
-          <div className="w-full rounded-2xl p-6" style={{ maxWidth: "820px", background: "rgba(26,60,46,0.45)", backdropFilter: "blur(24px)", border: "1px solid rgba(201,148,58,0.35)", boxShadow: "0 16px 60px rgba(0,0,0,0.3)" }}>
+          <div className="w-full rounded-2xl p-6" style={{ maxWidth: "1000px", background: "rgba(26,60,46,0.45)", backdropFilter: "blur(24px)", border: "1px solid rgba(201,148,58,0.35)", boxShadow: "0 16px 60px rgba(0,0,0,0.3)" }}>
             <HeroSearchBar />
           </div>
         </div>
@@ -229,7 +260,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ANNONCES */}
+      {/* ANNONCES EN VEDETTE */}
       <section className="py-20" style={{ background: "#F7F3EC" }}>
         <div className="mx-auto px-6" style={{ maxWidth: "1440px" }}>
           <div className="flex items-end justify-between mb-12">
@@ -238,7 +269,7 @@ export default function HomePage() {
               <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "42px", fontWeight: 600, color: "#1A3C2E", lineHeight: 1.1 }}>Hébergements en vedette</h2>
             </div>
             <button onClick={() => router.push("/search")} className="hidden md:flex items-center gap-2" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "14px", fontWeight: 500, color: "#1A3C2E", background: "none", border: "none", cursor: "pointer" }}>
-              Tous les hôtels <ArrowRight size={16} />
+              Tous les hébergements <ArrowRight size={16} />
             </button>
           </div>
           {loading ? (
@@ -262,10 +293,10 @@ export default function HomePage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
-              { icon: Shield, title: "Paiement sécurisé", desc: "Mobile Money (MTN, Orange) & carte bancaire acceptés en toute sécurité." },
-              { icon: RefreshCw, title: "Annulation flexible", desc: "Annulation gratuite jusqu'à 48h avant votre arrivée, sans frais." },
-              { icon: BadgePercent, title: "Prix garantis FCFA", desc: "Aucune surprise de change. Tous vos prix sont affichés et débités en FCFA." },
-              { icon: Headphones, title: "Support local 24/7", desc: "Une équipe camerounaise disponible à toute heure pour vous assister." },
+              { icon: Shield, title: "Paiement sécurisé", desc: "Mobile Money, carte bancaire et portefeuille numérique acceptés en toute sécurité." },
+              { icon: RefreshCw, title: "Annulation flexible", desc: "Annulation gratuite jusqu'à 48h avant votre arrivée, sans frais cachés." },
+              { icon: BadgePercent, title: "Prix transparents", desc: "Aucune surprise. Tous vos prix sont affichés dans la devise locale de l'hébergement." },
+              { icon: Headphones, title: "Support local 24/7", desc: "Une équipe disponible à toute heure dans votre langue pour vous assister." },
             ].map(({ icon: Icon, title, desc }, i) => (
               <div key={i} className="text-center p-8 rounded-2xl" style={{ background: "#F7F3EC", border: "1px solid rgba(26,60,46,0.07)" }}>
                 <div className="mx-auto mb-5 flex items-center justify-center rounded-full" style={{ width: 64, height: 64, background: "linear-gradient(135deg, rgba(26,60,46,0.08), rgba(201,148,58,0.12))", border: "1px solid rgba(201,148,58,0.25)" }}>
@@ -304,21 +335,45 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* NEWSLETTER */}
-      <section className="relative py-20 overflow-hidden" style={{ background: "#1A3C2E" }}>
+      {/* À PROPOS — zone verte visible ici uniquement (id="about") */}
+      <section id="about" className="relative py-20 overflow-hidden" style={{ background: "#1A3C2E" }}>
         <div className="absolute top-0 left-0 right-0" style={{ height: "5px", background: "repeating-linear-gradient(90deg, #C9943A 0px, #C9943A 16px, #F7F3EC 16px, #F7F3EC 32px, #C4622D 32px, #C4622D 48px, #F7F3EC 48px, #F7F3EC 64px)" }} />
-        <div className="relative z-10 mx-auto px-6 text-center" style={{ maxWidth: "640px" }}>
-          <p className="mb-3" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "12px", fontWeight: 600, color: "rgba(201,148,58,0.8)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Newsletter</p>
-          <h2 className="mb-3" style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "clamp(36px, 5vw, 52px)", fontWeight: 600, color: "#C9943A", lineHeight: 1.15 }}>
-            Partez à la découverte<br /><em style={{ color: "#F7F3EC" }}>du Cameroun</em>
-          </h2>
-          <p className="mb-10" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "16px", color: "rgba(247,243,236,0.65)", lineHeight: 1.65 }}>
-            Recevez nos meilleures offres, nouvelles destinations et bons plans en avant-première.
-          </p>
-          <div className="flex gap-3 max-w-md mx-auto">
-            <input type="email" placeholder="votre@email.com" style={{ flex: 1, fontFamily: "'DM Sans', sans-serif", fontSize: "15px", color: "#F7F3EC", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(201,148,58,0.35)", borderRadius: "8px", padding: "12px 18px", outline: "none" }} />
-            <button style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "14px", fontWeight: 700, color: "#1A3C2E", background: "linear-gradient(135deg, #C9943A, #D9A84A)", border: "none", borderRadius: "8px", padding: "12px 24px", cursor: "pointer", whiteSpace: "nowrap" }}>S&apos;inscrire</button></div>
-</div>
-</section>
-</div>
-  )}
+        <div className="relative z-10 mx-auto px-6" style={{ maxWidth: "1440px" }}>
+          <div className="text-center mb-16">
+            <p className="mb-3" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "12px", fontWeight: 600, color: "rgba(201,148,58,0.8)", letterSpacing: "0.14em", textTransform: "uppercase" }}>À propos</p>
+            <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "clamp(36px, 5vw, 52px)", fontWeight: 600, color: "#C9943A", lineHeight: 1.15 }}>
+              Une plateforme de confiance,<br /><em style={{ color: "#F7F3EC" }}>partout dans le monde</em>
+            </h2>
+            <p className="mt-6 mx-auto" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "16px", color: "rgba(247,243,236,0.65)", lineHeight: 1.75, maxWidth: "680px" }}>
+              KamerStay connecte des voyageurs exigeants à des hôtes locaux passionnés. Née au Cameroun, notre plateforme s&apos;étend aujourd&apos;hui à plusieurs pays pour offrir des expériences d&apos;hébergement authentiques, avec paiement sécurisé dans la devise locale.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+            {[
+              { stat: "10 000+", label: "Voyageurs satisfaits" },
+              { stat: "500+", label: "Hôtes vérifiés" },
+              { stat: "10+", label: "Pays couverts" },
+            ].map(({ stat, label }) => (
+              <div key={label} className="text-center p-8 rounded-2xl" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(201,148,58,0.2)" }}>
+                <p style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "52px", fontWeight: 600, color: "#C9943A", lineHeight: 1 }}>{stat}</p>
+                <p className="mt-2" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "14px", color: "rgba(247,243,236,0.6)" }}>{label}</p>
+              </div>
+            ))}
+          </div>
+          {/* Newsletter */}
+          <div className="text-center">
+            <p className="mb-3" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "12px", fontWeight: 600, color: "rgba(201,148,58,0.8)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Newsletter</p>
+            <h3 className="mb-3" style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 600, color: "#F7F3EC" }}>Recevez nos meilleures offres</h3>
+            <p className="mb-8" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "15px", color: "rgba(247,243,236,0.55)" }}>
+              Nouvelles destinations, bons plans et offres exclusives en avant-première.
+            </p>
+            <div className="flex gap-3 max-w-md mx-auto">
+              <input type="email" placeholder="votre@email.com" style={{ flex: 1, fontFamily: "'DM Sans', sans-serif", fontSize: "15px", color: "#F7F3EC", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(201,148,58,0.35)", borderRadius: "8px", padding: "12px 18px", outline: "none" }} />
+              <button style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "14px", fontWeight: 700, color: "#1A3C2E", background: "linear-gradient(135deg, #C9943A, #D9A84A)", border: "none", borderRadius: "8px", padding: "12px 24px", cursor: "pointer", whiteSpace: "nowrap" }}>S&apos;inscrire</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
