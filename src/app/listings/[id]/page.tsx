@@ -9,7 +9,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   getAnnonce, getAvis, createAvis, createReservation,
-  Annonce, Avis,
+  Annonce, AvisItem,
 } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
