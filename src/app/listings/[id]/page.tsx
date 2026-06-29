@@ -9,6 +9,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   getAnnonce, getAvis, createAvis, createReservation,
+  getMesReservations, getPeutNoter,
   Annonce, AvisItem, // Utilisez AvisItem au lieu de Avis
 } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -132,6 +133,8 @@ export default function ListingDetailPage() {
   const [commentaire,   setCommentaire]   = useState("");
   const [avisLoading,   setAvisLoading]   = useState(false);
   const [showAvisForm,  setShowAvisForm]  = useState(false);
+  // Réservation du client éligible à la notation pour CETTE annonce (null = aucune)
+  const [reservationANoter, setReservationANoter] = useState<number | null>(null);
 
   // ── Chargement initial ─────────────────────────────────
   useEffect(() => {
@@ -166,6 +169,37 @@ export default function ListingDetailPage() {
     }
     load();
   }, [id, router, showToast]); // Ajout des dépendances manquantes
+
+  // ── Réservation éligible à la notation ─────────────────
+  // On cherche une réservation du client pour CETTE annonce qui est
+  // TERMINEE (ou CONFIRMEE à mi-séjour), puis on confirme via peut-noter.
+  useEffect(() => {
+    async function resoudreReservation() {
+      if (!isAuthenticated || user?.role === "HOTE") {
+        setReservationANoter(null);
+        return;
+      }
+      const { data, error } = await getMesReservations();
+      if (error || !data) {
+        setReservationANoter(null);
+        return;
+      }
+      const candidates = data.filter(
+        (r) =>
+          Number(r.annonce_id) === Number(id) &&
+          (r.statut === "TERMINEE" || r.statut === "CONFIRMEE")
+      );
+      for (const r of candidates) {
+        const { data: pn } = await getPeutNoter(r.idreservation);
+        if (pn?.peut_noter) {
+          setReservationANoter(r.idreservation);
+          return;
+        }
+      }
+      setReservationANoter(null);
+    }
+    resoudreReservation();
+  }, [id, isAuthenticated, user]);
 
   // ── Toutes les photos ──────────────────────────────────
   const photos = annonce?.images ?? [];
@@ -219,17 +253,24 @@ export default function ListingDetailPage() {
 
   async function handleAvis(e: FormEvent) {
     e.preventDefault();
+    if (reservationANoter === null) {
+      showToast(
+        "Vous ne pouvez noter qu'un logement que vous avez réservé et séjourné.",
+        "warning"
+      );
+      return;
+    }
     if (!commentaire.trim()) {
       showToast("Veuillez écrire un commentaire.", "warning");
       return;
     }
 
     setAvisLoading(true);
-    // Correction : createAvis attend reservation_id, pas annonce_id
-    const { data, error } = await createAvis({ 
-      reservation_id: 0, // ❗ À remplacer par l'ID réel de la réservation
-      note, 
-      commentaire 
+    // createAvis attend reservation_id : on passe la réservation éligible résolue.
+    const { data, error } = await createAvis({
+      reservation_id: reservationANoter,
+      note,
+      commentaire,
     });
     setAvisLoading(false);
 
@@ -237,10 +278,11 @@ export default function ListingDetailPage() {
       showToast(error || "Erreur lors de l'envoi de l'avis.", "error");
       return;
     }
-    setAvis((prev) => [data, ...prev]);
+    setAvis((prev) => [data.avis, ...prev]);
     setCommentaire("");
     setNote(5);
     setShowAvisForm(false);
+    setReservationANoter(null); // une réservation = un seul avis
     showToast("Votre avis a été publié. ⭐", "success");
   }
 
@@ -489,7 +531,7 @@ export default function ListingDetailPage() {
               <h2 className="font-playfair text-2xl font-bold text-gray-900">
                 Avis ({avis.length})
               </h2>
-              {isAuthenticated && user?.role !== "HOTE" && (
+              {isAuthenticated && user?.role !== "HOTE" && reservationANoter !== null && (
                 <button
                   onClick={() => setShowAvisForm(!showAvisForm)}
                   className="text-sm font-semibold text-red-500 hover:text-red-600

@@ -4,10 +4,11 @@
 //  Liste des annonces : filtres, recherche, pagination
 // ============================================================
 
-import { useState, useEffect, useCallback, FormEvent } from "react";
+import { useState, useEffect, useCallback, FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getAnnonces, Annonce } from "@/lib/api";
+import { imageUrl } from "@/lib/images";
 import { useToast } from "@/contexts/ToastContext";
 
 // ══════════════════════════════════════════════════════════
@@ -25,9 +26,9 @@ function AnnonceCard({ annonce }: { annonce: Annonce }) {
     >
       {/* Image */}
       <div className="relative h-48 bg-gray-100 overflow-hidden">
-        {annonce.image_principale ? (
+        {annonce.images && annonce.images.length > 0 ? (
           <img
-            src={annonce.image_principale}
+            src={imageUrl(annonce.images[0])}
             alt={annonce.titre}
             className="w-full h-full object-cover group-hover:scale-105
                        transition-transform duration-300"
@@ -66,7 +67,7 @@ function AnnonceCard({ annonce }: { annonce: Annonce }) {
         <div className="flex items-center justify-between">
           <div>
             <span className="font-bold text-gray-900 text-sm">
-              {Number(annonce.prix_par_nuit).toLocaleString("fr-FR")}
+              {Number(annonce.prixparnuit ?? annonce.prix ?? 0).toLocaleString("fr-FR")}
             </span>
             <span className="text-gray-400 text-xs"> FCFA/nuit</span>
           </div>
@@ -74,8 +75,8 @@ function AnnonceCard({ annonce }: { annonce: Annonce }) {
             <span className="flex items-center gap-1 text-xs text-gray-500
                              bg-gray-50 px-2 py-1 rounded-full">
               ⭐ {parseFloat(String(annonce.note_moyenne)).toFixed(1)}
-              {annonce.nombre_avis && (
-                <span className="text-gray-400">({annonce.nombre_avis})</span>
+              {annonce.nb_avis && (
+                <span className="text-gray-400">({annonce.nb_avis})</span>
               )}
             </span>
           ) : null}
@@ -108,7 +109,7 @@ function SkeletonCard() {
 
 const PAGE_SIZE = 9;
 
-export default function ListingsPage() {
+function ListingsInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const { showToast } = useToast();
@@ -138,7 +139,7 @@ export default function ListingsPage() {
       ...(prixMin  ? { prix_min: Number(prixMin) }   : {}),
       ...(prixMax  ? { prix_max: Number(prixMax) }   : {}),
       page: p,
-      size: PAGE_SIZE,
+      limit: PAGE_SIZE,
     });
 
     if (error) {
@@ -146,13 +147,13 @@ export default function ListingsPage() {
     } else if (data) {
       // Tri côté client si le backend ne le gère pas
       let results = data.annonces ?? [];
-      if (tri === "prix_asc")  results = [...results].sort((a, b) => a.prix_par_nuit - b.prix_par_nuit);
-      if (tri === "prix_desc") results = [...results].sort((a, b) => b.prix_par_nuit - a.prix_par_nuit);
+      if (tri === "prix_asc")  results = [...results].sort((a, b) => Number(a.prixparnuit ?? a.prix ?? 0) - Number(b.prixparnuit ?? b.prix ?? 0));
+      if (tri === "prix_desc") results = [...results].sort((a, b) => Number(b.prixparnuit ?? b.prix ?? 0) - Number(a.prixparnuit ?? a.prix ?? 0));
       if (tri === "note")      results = [...results].sort((a, b) =>
         (parseFloat(String(b.note_moyenne ?? 0))) - (parseFloat(String(a.note_moyenne ?? 0)))
       );
       setAnnonces(results);
-      setTotal(data.total ?? 0);
+      setTotal(data.pagination?.total ?? 0);
     }
     setLoading(false);
   }, [ville, capacite, prixMin, prixMax, tri]); // eslint-disable-line
@@ -463,5 +464,13 @@ export default function ListingsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ListingsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-ivory" />}>
+      <ListingsInner />
+    </Suspense>
   );
 }
