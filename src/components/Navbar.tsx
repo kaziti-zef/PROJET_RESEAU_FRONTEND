@@ -62,7 +62,6 @@ export function Navbar() {
         <nav className="hidden md:flex items-center gap-8">
           {[
             { label: "Chambres", href: "/search" },
-            { label: "Destinations", href: "/destinations" },
             { label: "À propos", href: "/#about" },
           ].map((item) => (
             <Link key={item.label} href={item.href} className={styles.navLink} style={{ color: linkColor }}>
@@ -111,7 +110,6 @@ export function Navbar() {
         <div className={`md:hidden px-6 pb-6 pt-4 ${styles.mobileMenu}`}>
           <nav className="flex flex-col gap-3">
             <Link href="/search" onClick={() => setMobileOpen(false)} className={styles.mobileLink}>Chambres</Link>
-            <Link href="/destinations" onClick={() => setMobileOpen(false)} className={styles.mobileLink}>Destinations</Link>
             <Link href="/#about" onClick={() => setMobileOpen(false)} className={styles.mobileLink}>À propos</Link>
             {isAuthenticated && user ? (
               <>

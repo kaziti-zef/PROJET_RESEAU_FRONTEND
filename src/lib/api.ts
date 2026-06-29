@@ -54,6 +54,21 @@ export interface Annonce {
   date_debut_validite?: string | null;
   date_fin_validite?: string | null;
   equipements?: string[] | null;
+  // Type de chambre (T1)
+  type_id?: number | null;
+  type_code?: string | null;
+  type_nom?: string | null;
+  // Pays + devise (P1)
+  pays_id?: number | null;
+  pays_code?: string | null;
+  pays_nom?: string | null;
+  devise_code?: string | null;
+  devise_symbole?: string | null;
+  // Caractéristiques intrinsèques (C1)
+  caracteristiques?: string[] | null;
+  // Score du modèle (présent quand tri=pertinence)
+  score?: number;
+  prixtotalsejour?: number;
 }
 
 export type StatutReservation =
@@ -101,7 +116,7 @@ export interface AvisItem {
   ville?: string;
 }
 
-export type ModePaiement = "CARTE" | "MOBILE_MONEY" | "ESPECES";
+export type ModePaiement = "CARTE" | "MOBILE_MONEY" | "ESPECES" | "WALLET";
 
 export interface SearchParams {
   ville?: string;
@@ -110,7 +125,45 @@ export interface SearchParams {
   prix_max?: number;
   page?: number;
   limit?: number;
-  tri?: "populaire";
+  tri?: "populaire" | "pertinence" | "recent";
+  // Filtres "durs" supplémentaires
+  type?: string;   // code du type de chambre
+  pays?: string;   // code ISO du pays
+  // Préférences du modèle (codes désirés, séparés par des virgules)
+  equipements?: string;
+  caracteristiques?: string;
+  // Paramètres du scoring
+  nb_nuits?: number;
+  budget?: number;
+}
+
+export interface Pays {
+  id: number;
+  code: string;
+  nom: string;
+  devise_code: string;
+  devise_symbole: string;
+  indicatif?: string;
+}
+
+export interface Ville {
+  id: number;
+  nom: string;
+  pays_id: number;
+  pays_code?: string;
+  pays_nom?: string;
+}
+
+export interface TypeChambre {
+  id: number;
+  code: string;
+  nom: string;
+}
+
+export interface Caracteristique {
+  id: number;
+  code: string;
+  nom: string;
 }
 
 export interface VillePopulaire {
@@ -147,6 +200,38 @@ export interface Pagination {
   page: number;
   limit: number;
   total_pages: number;
+}
+
+export interface WalletTransaction {
+  id: number;
+  montant: number | string;
+  type: string;            // GAIN_HOTE, PAIEMENT, REMBOURSEMENT, RECHARGE…
+  motif?: string;
+  reservation_id?: number | null;
+  date_transaction?: string;
+}
+
+export interface Wallet {
+  solde: number;
+  transactions: WalletTransaction[];
+}
+
+export interface ParametresPlateforme {
+  commission_pct: number;
+  remb_full_jours: number;
+  remb_partiel_jours: number;
+  remb_partiel_pct: number;
+}
+
+export interface FinancePlateforme {
+  volume_brut: number;
+  commission_brute: number;
+  commission_remboursee: number;
+  commission_nette: number;
+  reverse_hotes: number;
+  total_rembourse: number;
+  nb_paiements: number;
+  nb_remboursements: number;
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -305,6 +390,58 @@ export async function getVillesPopulaires(limit = 10) {
 /** Liste fixe des équipements disponibles (point 16). */
 export async function getEquipements() {
   return apiFetch<Equipement[]>("/api/equipements");
+}
+
+/** Liste des caractéristiques intrinsèques du logement (C1). */
+export async function getCaracteristiques() {
+  return apiFetch<Caracteristique[]>("/api/caracteristiques");
+}
+
+/** Catalogue des types de chambre (T1). */
+export async function getTypesChambre() {
+  return apiFetch<TypeChambre[]>("/api/types-chambre");
+}
+
+/** Liste des pays disponibles, avec leur devise (P1). */
+export async function getPays() {
+  return apiFetch<Pays[]>("/api/pays");
+}
+
+/** Villes d'un pays (filtre par code ISO, ex "CM"). Sans code : toutes. */
+export async function getVilles(codePays?: string) {
+  const q = codePays ? `?code=${encodeURIComponent(codePays)}` : "";
+  return apiFetch<Ville[]>(`/api/pays/villes${q}`);
+}
+
+// ══════════════════════════════════════════════════════════
+//  PORTE-MONNAIE (W1)
+// ══════════════════════════════════════════════════════════
+
+/** Mon porte-monnaie : solde + historique des transactions. */
+export async function getMonWallet() {
+  return apiFetch<Wallet>("/api/wallet");
+}
+
+// ══════════════════════════════════════════════════════════
+//  PARAMÈTRES PLATEFORME / FINANCE (O3, O4) — Admin / Super-admin
+// ══════════════════════════════════════════════════════════
+
+/** Lire les paramètres plateforme (commission + politique de remboursement). */
+export async function getParametres() {
+  return apiFetch<ParametresPlateforme>("/api/admin/parametres");
+}
+
+/** Mettre à jour les paramètres plateforme (Super-admin uniquement). */
+export async function updateParametres(payload: Partial<ParametresPlateforme>) {
+  return apiFetch<{ message: string; parametres: ParametresPlateforme }>("/api/admin/parametres", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** Synthèse financière de la plateforme (Super-admin uniquement). */
+export async function getFinancePlateforme() {
+  return apiFetch<FinancePlateforme>("/api/admin/finance");
 }
 
 // ══════════════════════════════════════════════════════════

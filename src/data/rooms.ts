@@ -25,11 +25,19 @@ export interface Room {
   description: string;
   guests: number;
   size: number;
+  devise?: string;
+  caracteristiques?: string[];
 }
 
-/** Formatte un montant en Franc CFA. */
+/** Formatte un montant avec une devise (FCFA par défaut). */
+export function formatPrix(amount: number | string, symbole?: string | null): string {
+  const n = Math.round(Number(amount) || 0).toLocaleString("fr-FR");
+  return `${n} ${symbole || "FCFA"}`;
+}
+
+/** Formatte un montant en Franc CFA (conservé pour compatibilité). */
 export function formatFCFA(amount: number): string {
-  return Math.round(Number(amount) || 0).toLocaleString("fr-FR") + " FCFA";
+  return formatPrix(amount, "FCFA");
 }
 
 // Image de secours quand une annonce n'a pas de photo
@@ -65,12 +73,31 @@ export function annonceToRoom(a: Annonce): Room {
       a.disponible === false || (a.statut && a.statut !== "DISPONIBLE")
         ? "Indisponible"
         : null,
-    type: "Chambre",
+    type: a.type_nom || "Chambre",
     description: a.description || "Hébergement de qualité au cœur du Cameroun.",
     guests: Number(a.capacite ?? 1),
     size: Number(a.superficie ?? 0) || 30,
+    devise: a.devise_symbole || "FCFA",
+    caracteristiques: (a.caracteristiques || []).filter(Boolean),
   };
 }
+
+// ── Catalogue d'affichage des TYPES de chambre (T1) ──
+// Codes alignés sur le backend (types_chambre). Sert la section
+// "Explorez par type" de l'accueil ; remplaçable quand la liste
+// définitive sera fixée.
+export interface RoomTypeCard { code: string; nom: string; subtitle: string; image: string; }
+
+export const roomTypes: RoomTypeCard[] = [
+  { code: "case_traditionnelle", nom: "Case / Hutte", subtitle: "Authentique & locale", image: "https://images.unsplash.com/photo-1523365154888-8a758819b722?w=600&q=80" },
+  { code: "studio",        nom: "Studio",        subtitle: "Compact & pratique",    image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600&q=80" },
+  { code: "suite",         nom: "Suite",         subtitle: "Spacieuse & raffinée",  image: "https://images.unsplash.com/photo-1591088398332-8a7791972843?w=600&q=80" },
+  { code: "bungalow",      nom: "Bungalow",      subtitle: "Détente en pleine nature", image: "https://images.unsplash.com/photo-1540541338287-41700207dee6?w=600&q=80" },
+  { code: "villa",         nom: "Villa",         subtitle: "Prestige & intimité",   image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=600&q=80" },
+  { code: "chambre_double", nom: "Chambre double", subtitle: "Confort à deux",      image: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&q=80" },
+  { code: "appartement",   nom: "Appartement",   subtitle: "Comme à la maison",     image: "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?w=600&q=80" },
+  { code: "dortoir",       nom: "Dortoir",       subtitle: "Économique & convivial", image: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&q=80" },
+];
 
 // ── Données décoratives (sections marketing de l'accueil) ──
 

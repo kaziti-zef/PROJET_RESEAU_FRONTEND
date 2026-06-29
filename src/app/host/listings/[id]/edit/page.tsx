@@ -2,6 +2,7 @@
 // ============================================================
 //  KamerStay — app/host/listings/[id]/edit/page.tsx
 //  Modification d'une annonce (champs + statut + ajout d'images).
+//  + Type (T1), pays/devise + ville (P1), caractéristiques (C1).
 // ============================================================
 
 import { useEffect, useState } from "react";
@@ -10,7 +11,10 @@ import Link from "next/link";
 import { ArrowLeft, ImagePlus } from "lucide-react";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
 import { imageUrl } from "@/lib/images";
-import { getAnnonce, updateAnnonce, getEquipements, type Equipement } from "@/lib/api";
+import {
+  getAnnonce, updateAnnonce, getEquipements, getCaracteristiques, getTypesChambre, getPays, getVilles,
+  type Equipement, type Caracteristique, type TypeChambre, type Pays, type Ville,
+} from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import styles from "../../host-listings.module.css";
@@ -28,6 +32,7 @@ export default function EditListingPage() {
   const [loading, setLoading] = useState(true);
   const [titre, setTitre] = useState("");
   const [description, setDescription] = useState("");
+  const [paysCode, setPaysCode] = useState("CM");
   const [ville, setVille] = useState("");
   const [quartier, setQuartier] = useState("");
   const [adresse, setAdresse] = useState("");
@@ -35,17 +40,27 @@ export default function EditListingPage() {
   const [capacite, setCapacite] = useState(1);
   const [statut, setStatut] = useState("DISPONIBLE");
   const [superficie, setSuperficie] = useState("");
+  const [typeCode, setTypeCode] = useState("");
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [equipements, setEquipements] = useState<Equipement[]>([]);
   const [selectedEquip, setSelectedEquip] = useState<string[]>([]);
+  const [caracs, setCaracs] = useState<Caracteristique[]>([]);
+  const [selectedCaracs, setSelectedCaracs] = useState<string[]>([]);
+  const [types, setTypes] = useState<TypeChambre[]>([]);
+  const [pays, setPays] = useState<Pays[]>([]);
+  const [villes, setVilles] = useState<Ville[]>([]);
   const [existing, setExisting] = useState<string[]>([]);
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
+  const deviseSymbole = pays.find((p) => p.code === paysCode)?.devise_symbole || "FCFA";
+
   const toggleEquip = (code: string) =>
     setSelectedEquip((p) => (p.includes(code) ? p.filter((c) => c !== code) : [...p, code]));
+  const toggleCarac = (code: string) =>
+    setSelectedCaracs((p) => (p.includes(code) ? p.filter((c) => c !== code) : [...p, code]));
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) { router.replace(`/login?redirect=/host/listings/${id}/edit`); return; }
@@ -54,11 +69,17 @@ export default function EditListingPage() {
 
   useEffect(() => {
     (async () => {
-      const [{ data }, equipRes] = await Promise.all([getAnnonce(id!), getEquipements()]);
-      if (equipRes.data) setEquipements(equipRes.data);
+      const [{ data }, eqRes, caRes, tyRes, paRes] = await Promise.all([
+        getAnnonce(id!), getEquipements(), getCaracteristiques(), getTypesChambre(), getPays(),
+      ]);
+      if (eqRes.data) setEquipements(eqRes.data);
+      if (caRes.data) setCaracs(caRes.data);
+      if (tyRes.data) setTypes(tyRes.data);
+      if (paRes.data) setPays(paRes.data);
       if (data) {
         setTitre(data.titre || "");
         setDescription(data.description || "");
+        setPaysCode(data.pays_code || "CM");
         setVille(data.ville || "");
         setQuartier(data.quartier || "");
         setAdresse(data.adresse || "");
@@ -66,14 +87,24 @@ export default function EditListingPage() {
         setCapacite(Number(data.capacite ?? 1));
         setStatut(data.statut || "DISPONIBLE");
         setSuperficie(data.superficie != null ? String(data.superficie) : "");
+        setTypeCode(data.type_code || "");
         setDateDebut(toDateInput(data.date_debut_validite));
         setDateFin(toDateInput(data.date_fin_validite));
-        setSelectedEquip((data.equipements || []).filter(Boolean));
+        setSelectedEquip((data.equipements || []).filter(Boolean) as string[]);
+        setSelectedCaracs((data.caracteristiques || []).filter(Boolean) as string[]);
         setExisting((data.images || []).filter(Boolean));
       }
       setLoading(false);
     })();
   }, [id]);
+
+  // Villes du pays sélectionné
+  useEffect(() => {
+    (async () => {
+      const { data } = await getVilles(paysCode);
+      setVilles(data || []);
+    })();
+  }, [paysCode]);
 
   function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const list = Array.from(e.target.files || []).slice(0, 5);
@@ -93,16 +124,19 @@ export default function EditListingPage() {
     const form = new FormData();
     form.append("titre", titre);
     form.append("description", description);
+    form.append("pays", paysCode);
     form.append("ville", ville);
     form.append("quartier", quartier);
     form.append("adresse", adresse);
     form.append("prixParNuit", String(prix));
     form.append("capacite", String(capacite));
     form.append("statut", statut);
+    form.append("type", typeCode);
     form.append("superficie", superficie);
     form.append("date_debut_validite", dateDebut);
     form.append("date_fin_validite", dateFin);
     form.append("equipements", JSON.stringify(selectedEquip));
+    form.append("caracteristiques", JSON.stringify(selectedCaracs));
     files.forEach((f) => form.append("images", f));
     const { error } = await updateAnnonce(Number(id), form);
     setSaving(false);
@@ -132,13 +166,34 @@ export default function EditListingPage() {
         <form onSubmit={onSubmit} className={`${styles.formCard} rounded-2xl p-7 flex flex-col gap-5`}>
           <Field label="Titre de l'annonce"><input className={styles.input} value={titre} onChange={(e) => setTitre(e.target.value)} required /></Field>
           <Field label="Description"><textarea className={`${styles.input} ${styles.textarea}`} rows={4} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
+
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Ville"><input className={styles.input} value={ville} onChange={(e) => setVille(e.target.value)} required /></Field>
+            <Field label="Type de chambre">
+              <select className={`${styles.input} ${styles.select}`} value={typeCode} onChange={(e) => setTypeCode(e.target.value)}>
+                <option value="">— Choisir un type —</option>
+                {types.map((t) => (<option key={t.code} value={t.code}>{t.nom}</option>))}
+              </select>
+            </Field>
+            <Field label="Pays">
+              <select className={`${styles.input} ${styles.select}`} value={paysCode} onChange={(e) => { setPaysCode(e.target.value); }}>
+                {pays.map((p) => (<option key={p.code} value={p.code}>{p.nom} ({p.devise_symbole})</option>))}
+              </select>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Ville">
+              <input className={styles.input} value={ville} onChange={(e) => setVille(e.target.value)} list="villes-list-edit" required />
+              <datalist id="villes-list-edit">
+                {villes.map((v) => (<option key={v.id} value={v.nom} />))}
+              </datalist>
+            </Field>
             <Field label="Quartier"><input className={styles.input} value={quartier} onChange={(e) => setQuartier(e.target.value)} /></Field>
           </div>
           <Field label="Adresse"><input className={styles.input} value={adresse} onChange={(e) => setAdresse(e.target.value)} /></Field>
+
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Prix par nuit (FCFA)"><input className={styles.input} type="number" min={0} value={prix} onChange={(e) => setPrix(e.target.value)} required /></Field>
+            <Field label={`Prix par nuit (${deviseSymbole})`}><input className={styles.input} type="number" min={0} value={prix} onChange={(e) => setPrix(e.target.value)} required /></Field>
             <Field label="Capacité (personnes)">
               <div className={`${styles.stepper} flex items-center gap-3`}>
                 <button type="button" onClick={() => setCapacite((c) => Math.max(1, c - 1))} className={styles.stepBtn}>−</button>
@@ -163,12 +218,25 @@ export default function EditListingPage() {
           </div>
 
           {equipements.length > 0 && (
-            <Field label="Équipements">
+            <Field label="Équipements (commodités fournies)">
               <div className="flex flex-wrap gap-2.5">
                 {equipements.map((eq) => (
                   <label key={eq.code} className="flex items-center gap-2 cursor-pointer" style={{ border: "1px solid rgba(26,60,46,0.15)", borderRadius: "20px", padding: "6px 12px", background: selectedEquip.includes(eq.code) ? "rgba(201,148,58,0.18)" : "transparent" }}>
                     <input type="checkbox" checked={selectedEquip.includes(eq.code)} onChange={() => toggleEquip(eq.code)} />
                     <span className={styles.fieldLabel}>{eq.nom}</span>
+                  </label>
+                ))}
+              </div>
+            </Field>
+          )}
+
+          {caracs.length > 0 && (
+            <Field label="Caractéristiques (atouts du logement)">
+              <div className="flex flex-wrap gap-2.5">
+                {caracs.map((c) => (
+                  <label key={c.code} className="flex items-center gap-2 cursor-pointer" style={{ border: "1px solid rgba(26,60,46,0.15)", borderRadius: "20px", padding: "6px 12px", background: selectedCaracs.includes(c.code) ? "rgba(201,148,58,0.18)" : "transparent" }}>
+                    <input type="checkbox" checked={selectedCaracs.includes(c.code)} onChange={() => toggleCarac(c.code)} />
+                    <span className={styles.fieldLabel}>{c.nom}</span>
                   </label>
                 ))}
               </div>

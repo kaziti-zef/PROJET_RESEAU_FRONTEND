@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   LogOut, Mail, User as UserIcon, BadgeCheck,
-  LayoutDashboard, CalendarCheck, Phone, CreditCard, Upload, Clock, XCircle, Lock,
+  LayoutDashboard, CalendarCheck, Phone, CreditCard, Upload, Clock, XCircle, Lock, Wallet as WalletIcon,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { signOut } from "@/lib/auth";
-import { demanderDevenirHote, getStatutVerification, changerMotDePasse, StatutVerification } from "@/lib/api";
+import { demanderDevenirHote, getStatutVerification, changerMotDePasse, getMonWallet, StatutVerification, type Wallet } from "@/lib/api";
+import { formatPrix } from "@/data/rooms";
+import { StepIndicator } from "@/components/StepIndicator";
 import { useToast } from "@/contexts/ToastContext";
 import styles from "./profile.module.css";
 
@@ -19,7 +21,9 @@ export default function ProfilePage() {
   const { showToast } = useToast();
 
   const [statutVerif, setStatutVerif] = useState<StatutVerification | null>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [hoteStep, setHoteStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [telephone, setTelephone] = useState("");
   const [fournisseur, setFournisseur] = useState("");
@@ -43,6 +47,30 @@ export default function ProfilePage() {
       });
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    getMonWallet().then(({ data }) => { if (data) setWallet(data); });
+  }, [user]);
+
+  // Ouverture automatique du parcours "devenir hôte" après une
+  // inscription avec l'intention hôte (?devenir=hote).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("devenir") === "hote" && user?.role === "CLIENT") {
+      setShowForm(true);
+      setHoteStep(0);
+    }
+  }, [user]);
+
+  // Libellés lisibles des types de transaction du porte-monnaie
+  const txLabel = (type: string): string => ({
+    GAIN_HOTE: "Gain réservation",
+    PAIEMENT: "Paiement",
+    REMBOURSEMENT: "Remboursement",
+    RECHARGE: "Rechargement",
+  } as Record<string, string>)[type] || type;
 
   const handleDevenirHote = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,6 +169,37 @@ export default function ProfilePage() {
         </div>
 
         <div className={`rounded-2xl p-7 mb-6 ${styles.detailCard}`}>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className={styles.detailTitle}>Mon porte-monnaie</h2>
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full" style={{ background: "#FBF5EA", border: "1px solid rgba(201,148,58,0.4)", fontFamily: "'DM Sans', sans-serif", fontWeight: 700, color: "#1A3C2E" }}>
+              <WalletIcon size={16} color="#C9943A" /> {formatPrix(wallet ? wallet.solde : 0)}
+            </span>
+          </div>
+
+          {wallet && wallet.transactions.length > 0 ? (
+            <div className="flex flex-col gap-2.5">
+              {wallet.transactions.slice(0, 8).map((t) => {
+                const montant = Number(t.montant);
+                const credit = montant >= 0;
+                return (
+                  <div key={t.id} className={`flex items-center justify-between gap-4 p-4 rounded-xl ${styles.infoRow}`}>
+                    <div>
+                      <p className={styles.infoValue}>{txLabel(t.type)}{t.motif ? ` · ${t.motif}` : ""}</p>
+                      <p className={styles.infoLabel}>{t.date_transaction ? new Date(t.date_transaction).toLocaleDateString("fr-FR") : ""}</p>
+                    </div>
+                    <span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, color: credit ? "#1A7F4E" : "#C4622D", whiteSpace: "nowrap" }}>
+                      {credit ? "+" : "−"} {formatPrix(Math.abs(montant))}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className={styles.infoLabel}>Aucune transaction pour le moment. Vos gains, remboursements et paiements apparaîtront ici.</p>
+          )}
+        </div>
+
+        <div className={`rounded-2xl p-7 mb-6 ${styles.detailCard}`}>
           <h2 className={`mb-5 ${styles.detailTitle}`}>Sécurité</h2>
 
           {!showPwdForm && (
@@ -234,65 +293,78 @@ export default function ProfilePage() {
 
             {showForm && (
               <form onSubmit={handleDevenirHote} className="flex flex-col gap-4">
-                <p className={styles.infoLabel} style={{ marginBottom: -8 }}>
-                  Renseignez vos informations pour publier des annonces. Un administrateur devra approuver votre compte.
-                </p>
+                <StepIndicator steps={["Contact", "Paiement", "Identité"]} current={hoteStep} />
 
-                <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: "#F7F3EC" }}>
-                  <Phone size={18} color="#1A3C2E" />
-                  <input
-                    type="tel"
-                    placeholder="Numéro de téléphone"
-                    value={telephone}
-                    onChange={(e) => setTelephone(e.target.value)}
-                    className="w-full bg-transparent outline-none"
-                    required
-                  />
-                </div>
+                {hoteStep === 0 && (
+                  <>
+                    <p className={styles.infoLabel} style={{ marginBottom: -8 }}>
+                      Votre numéro de téléphone permet aux voyageurs et à l&apos;équipe de vous joindre.
+                    </p>
+                    <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: "#F7F3EC" }}>
+                      <Phone size={18} color="#1A3C2E" />
+                      <input type="tel" placeholder="Numéro de téléphone" value={telephone}
+                        onChange={(e) => setTelephone(e.target.value)} className="w-full bg-transparent outline-none" />
+                    </div>
+                  </>
+                )}
 
-                <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: "#F7F3EC" }}>
-                  <CreditCard size={18} color="#1A3C2E" />
-                  <input
-                    type="text"
-                    placeholder="Fournisseur du compte de paiement (ex: MTN Mobile Money)"
-                    value={fournisseur}
-                    onChange={(e) => setFournisseur(e.target.value)}
-                    className="w-full bg-transparent outline-none"
-                    required
-                  />
-                </div>
+                {hoteStep === 1 && (
+                  <>
+                    <p className={styles.infoLabel} style={{ marginBottom: -8 }}>
+                      Le compte de paiement sur lequel vous recevrez vos gains.
+                    </p>
+                    <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: "#F7F3EC" }}>
+                      <CreditCard size={18} color="#1A3C2E" />
+                      <input type="text" placeholder="Fournisseur (ex: MTN Mobile Money)" value={fournisseur}
+                        onChange={(e) => setFournisseur(e.target.value)} className="w-full bg-transparent outline-none" />
+                    </div>
+                    <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: "#F7F3EC" }}>
+                      <CreditCard size={18} color="#1A3C2E" />
+                      <input type="text" placeholder="Identifiant du compte (ex: numéro)" value={identifiant}
+                        onChange={(e) => setIdentifiant(e.target.value)} className="w-full bg-transparent outline-none" />
+                    </div>
+                  </>
+                )}
 
-                <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: "#F7F3EC" }}>
-                  <CreditCard size={18} color="#1A3C2E" />
-                  <input
-                    type="text"
-                    placeholder="Identifiant du compte de paiement (ex: numéro)"
-                    value={identifiant}
-                    onChange={(e) => setIdentifiant(e.target.value)}
-                    className="w-full bg-transparent outline-none"
-                    required
-                  />
-                </div>
-
-                <label className="flex items-center gap-4 p-4 rounded-xl cursor-pointer" style={{ background: "#F7F3EC" }}>
-                  <Upload size={18} color="#1A3C2E" />
-                  <span className={styles.infoValue}>
-                    {photoCni ? photoCni.name : "Photo de votre CNI (vérification d'identité simulée)"}
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                    onChange={(e) => setPhotoCni(e.target.files?.[0] || null)}
-                    className="hidden"
-                    required
-                  />
-                </label>
+                {hoteStep === 2 && (
+                  <>
+                    <p className={styles.infoLabel} style={{ marginBottom: -8 }}>
+                      Votre pièce d&apos;identité est vérifiée automatiquement avant l&apos;examen par un administrateur.
+                    </p>
+                    <label className="flex items-center gap-4 p-4 rounded-xl cursor-pointer" style={{ background: "#F7F3EC" }}>
+                      <Upload size={18} color="#1A3C2E" />
+                      <span className={styles.infoValue}>
+                        {photoCni ? photoCni.name : "Photo de votre CNI (jpg, png, webp)"}
+                      </span>
+                      <input type="file" accept="image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={(e) => setPhotoCni(e.target.files?.[0] || null)} className="hidden" />
+                    </label>
+                  </>
+                )}
 
                 <div className="flex gap-3">
-                  <button type="submit" disabled={submitting} className={`flex-1 rounded-xl px-6 py-3 ${styles.primaryLink}`}>
-                    {submitting ? "Envoi en cours…" : "Envoyer ma demande"}
-                  </button>
-                  <button type="button" onClick={() => setShowForm(false)} className={`flex-1 rounded-xl ${styles.logoutBtn}`}>
+                  {hoteStep > 0 && (
+                    <button type="button" onClick={() => setHoteStep((s) => s - 1)} className={`flex-1 rounded-xl ${styles.logoutBtn}`}>
+                      Précédent
+                    </button>
+                  )}
+                  {hoteStep < 2 && (
+                    <button type="button"
+                      onClick={() => {
+                        if (hoteStep === 0 && !telephone) { showToast("Renseignez votre numéro de téléphone.", "error"); return; }
+                        if (hoteStep === 1 && (!fournisseur || !identifiant)) { showToast("Renseignez le compte de paiement.", "error"); return; }
+                        setHoteStep((s) => s + 1);
+                      }}
+                      className={`flex-1 rounded-xl px-6 py-3 ${styles.primaryLink}`}>
+                      Suivant
+                    </button>
+                  )}
+                  {hoteStep === 2 && (
+                    <button type="submit" disabled={submitting} className={`flex-1 rounded-xl px-6 py-3 ${styles.primaryLink}`}>
+                      {submitting ? "Vérification…" : "Envoyer ma demande"}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => { setShowForm(false); setHoteStep(0); }} className={`rounded-xl px-5 ${styles.logoutBtn}`}>
                     Annuler
                   </button>
                 </div>

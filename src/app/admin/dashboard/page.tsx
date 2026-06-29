@@ -2,14 +2,16 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Home, Clock, Check, X, MapPin, Star, ShieldPlus } from "lucide-react";
+import { Users, Home, Clock, Check, X, MapPin, Star, ShieldPlus, Wallet as WalletIcon, Save } from "lucide-react";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
-import { formatFCFA } from "@/data/rooms";
+import { formatPrix } from "@/data/rooms";
 import { imageUrl } from "@/lib/images";
 import {
   getUtilisateursAdmin, approuverUtilisateur, rejeterUtilisateur,
   getAnnoncesAdmin, supprimerAnnonceAdmin, getAdmins, creerAdmin,
+  getParametres, updateParametres, getFinancePlateforme,
   type UtilisateurAdmin, type Annonce, type AdminCompte,
+  type ParametresPlateforme, type FinancePlateforme,
 } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -21,12 +23,15 @@ export default function AdminDashboardPage() {
   const { showToast } = useToast();
 
   const isSuperAdmin = !!user?.est_super_admin;
-  const [tab, setTab] = useState<"comptes" | "annonces" | "admins">("comptes");
+  const [tab, setTab] = useState<"comptes" | "annonces" | "admins" | "finance">("comptes");
   const [demandes, setDemandes] = useState<UtilisateurAdmin[]>([]);
   const [annonces, setAnnonces] = useState<Annonce[]>([]);
   const [admins, setAdmins] = useState<AdminCompte[]>([]);
   const [newAdmin, setNewAdmin] = useState({ email: "", nom: "", prenom: "", motDePasse: "" });
   const [creatingAdmin, setCreatingAdmin] = useState(false);
+  const [params, setParams] = useState<ParametresPlateforme | null>(null);
+  const [finance, setFinance] = useState<FinancePlateforme | null>(null);
+  const [savingParams, setSavingParams] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -38,8 +43,10 @@ export default function AdminDashboardPage() {
     setDemandes(d.data || []);
     setAnnonces(a.data || []);
     if (user?.est_super_admin) {
-      const ad = await getAdmins();
+      const [ad, pa, fi] = await Promise.all([getAdmins(), getParametres(), getFinancePlateforme()]);
       setAdmins(ad.data || []);
+      setParams(pa.data || null);
+      setFinance(fi.data || null);
     }
     setLoading(false);
   }, [user?.est_super_admin]);
@@ -84,6 +91,17 @@ export default function AdminDashboardPage() {
     load();
   }
 
+  async function saveParams(e: React.FormEvent) {
+    e.preventDefault();
+    if (!params) return;
+    setSavingParams(true);
+    const { data, error } = await updateParametres(params);
+    setSavingParams(false);
+    if (error) { showToast(error, "error"); return; }
+    if (data) setParams(data.parametres);
+    showToast("Paramètres financiers mis à jour.", "success");
+  }
+
   return (
     <div className={styles.pageWrap}>
       <div className={`mx-auto px-6 ${styles.container}`}>
@@ -111,8 +129,8 @@ export default function AdminDashboardPage() {
           {(([
             ["comptes", "Comptes à valider"],
             ["annonces", "Annonces"],
-            ...(isSuperAdmin ? [["admins", "Administrateurs"]] : []),
-          ]) as [("comptes" | "annonces" | "admins"), string][]).map(([t, label]) => (
+            ...(isSuperAdmin ? [["admins", "Administrateurs"], ["finance", "Finance"]] : []),
+          ]) as [("comptes" | "annonces" | "admins" | "finance"), string][]).map(([t, label]) => (
             <button key={t} onClick={() => setTab(t)}
               className={`${styles.tabBtn} ${tab === t ? styles.tabActive : styles.tabInactive}`}>{label}</button>
           ))}
@@ -173,7 +191,7 @@ export default function AdminDashboardPage() {
                       <span>Hôte : {a.hote_prenom} {a.hote_nom}</span>
                     </div>
                     <div className={`mt-auto flex items-center justify-between pt-3 ${styles.divider}`}>
-                      <span className={styles.itemPrice}>{formatFCFA(Number(a.prixparnuit ?? a.prix ?? 0))}</span>
+                      <span className={styles.itemPrice}>{formatPrix(Number(a.prixparnuit ?? a.prix ?? 0), a.devise_symbole)}</span>
                       <button onClick={() => removeAnnonce(a)} className={styles.btnOutline}>Supprimer</button>
                     </div>
                   </div>
@@ -181,7 +199,7 @@ export default function AdminDashboardPage() {
               ))}
             </div>
           )
-        ) : (
+        ) : tab === "admins" ? (
           <div className="flex flex-col gap-6">
             <form onSubmit={addAdmin} className={`rounded-2xl p-6 ${styles.itemCard} flex flex-col gap-4`}>
               <h3 className={styles.itemTitle}>Créer un administrateur</h3>
@@ -212,6 +230,54 @@ export default function AdminDashboardPage() {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { label: "Volume brut", value: finance?.volume_brut },
+                { label: "Commission nette", value: finance?.commission_nette },
+                { label: "Reversé aux hôtes", value: finance?.reverse_hotes },
+                { label: "Total remboursé", value: finance?.total_rembourse },
+              ].map((s) => (
+                <div key={s.label} className={`rounded-2xl p-5 ${styles.statCard}`}>
+                  <div className={styles.statValue} style={{ fontSize: 20 }}>{formatPrix(Number(s.value || 0))}</div>
+                  <div className={styles.statLabel}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {params && (
+              <form onSubmit={saveParams} className={`rounded-2xl p-6 ${styles.itemCard} flex flex-col gap-4`}>
+                <h3 className={`flex items-center gap-2 ${styles.itemTitle}`}><WalletIcon size={18} color="#C9943A" /> Commission & politique de remboursement</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="flex flex-col gap-1.5">
+                    <span className={styles.itemMeta}>Commission plateforme (%)</span>
+                    <input className={styles.adminInput} type="number" min={0} max={100} step={0.5} value={params.commission_pct}
+                      onChange={(e) => setParams({ ...params, commission_pct: Number(e.target.value) })} />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={styles.itemMeta}>Remboursement total si annulation ≥ (jours)</span>
+                    <input className={styles.adminInput} type="number" min={0} value={params.remb_full_jours}
+                      onChange={(e) => setParams({ ...params, remb_full_jours: Number(e.target.value) })} />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={styles.itemMeta}>Remboursement partiel si annulation ≥ (jours)</span>
+                    <input className={styles.adminInput} type="number" min={0} value={params.remb_partiel_jours}
+                      onChange={(e) => setParams({ ...params, remb_partiel_jours: Number(e.target.value) })} />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={styles.itemMeta}>Taux de remboursement partiel (%)</span>
+                    <input className={styles.adminInput} type="number" min={0} max={100} value={params.remb_partiel_pct}
+                      onChange={(e) => setParams({ ...params, remb_partiel_pct: Number(e.target.value) })} />
+                  </label>
+                </div>
+                <p className={styles.itemMeta}>En-deçà du seuil « partiel », aucune somme n&apos;est remboursée à l&apos;annulation.</p>
+                <button type="submit" disabled={savingParams} className={`flex items-center gap-1.5 self-start ${styles.btnPrimary}`}>
+                  <Save size={15} /> {savingParams ? "Enregistrement…" : "Enregistrer"}
+                </button>
+              </form>
             )}
           </div>
         )}

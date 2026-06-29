@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle, Download, Home } from "lucide-react";
 import { motion } from "motion/react";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
-import { formatFCFA, annonceToRoom, type Room } from "@/data/rooms";
-import { getAnnonce, createReservation, createPaiement, type ModePaiement } from "@/lib/api";
+import { StepIndicator } from "@/components/StepIndicator";
+import { formatPrix, annonceToRoom, type Room } from "@/data/rooms";
+import { getAnnonce, createReservation, createPaiement, getMonWallet, type ModePaiement } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import styles from "./booking.module.css";
@@ -16,6 +17,7 @@ const paymentMethods: { id: string; label: string; color: string; bg: string; ic
   { id: "mtn", label: "MTN Mobile Money", color: "#FFCC00", bg: "#FFFBEC", icon: "📱", description: "*126# → Payer un marchand", mode: "MOBILE_MONEY" },
   { id: "visa", label: "Carte Visa / Mastercard", color: "#1A1F71", bg: "#F0F2FF", icon: "💳", description: "Paiement sécurisé 3D Secure", mode: "CARTE" },
   { id: "hotel", label: "Paiement à l'hôtel", color: "#1A3C2E", bg: "#F0F5F2", icon: "🏨", description: "Régler directement à votre arrivée", mode: "ESPECES" },
+  { id: "wallet", label: "Mon porte-monnaie", color: "#C9943A", bg: "#FBF5EA", icon: "👛", description: "Payer avec mon solde", mode: "WALLET" },
 ];
 
 function BookingInner() {
@@ -35,6 +37,16 @@ function BookingInner() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [ref, setRef] = useState("");
+  const [walletSolde, setWalletSolde] = useState<number | null>(null);
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    (async () => {
+      const { data } = await getMonWallet();
+      if (data) setWalletSolde(Number(data.solde));
+    })();
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -57,6 +69,7 @@ function BookingInner() {
     : 0;
   const total = room ? room.price * nights : 0;
   const amountToPay = payPartial ? Math.round(total * 0.5) : total;
+  const fmt = (v: number) => formatPrix(v, room?.devise);
 
   async function handleConfirm() {
     if (!room) return;
@@ -104,6 +117,10 @@ function BookingInner() {
               <h1 className={styles.pageTitle}>Récapitulatif</h1>
             </div>
 
+            <StepIndicator steps={["Séjour", "Paiement"]} current={step} />
+
+            {step === 0 && (
+            <>
             <div className={`rounded-2xl overflow-hidden mb-6 ${styles.summaryCard}`}>
               <div className="flex flex-col md:flex-row">
                 <div className={styles.summaryImage}>
@@ -136,12 +153,25 @@ function BookingInner() {
                   </div>
                   <div className={`mt-5 pt-5 flex items-center justify-between ${styles.totalDivider}`}>
                     <span className={styles.totalLabel}>Total{nights ? ` pour ${nights} nuit${nights > 1 ? "s" : ""}` : ""}</span>
-                    <span className={styles.totalAmount}>{formatFCFA(total)}</span>
+                    <span className={styles.totalAmount}>{fmt(total)}</span>
                   </div>
                 </div>
               </div>
             </div>
 
+            <button onClick={() => {
+              if (!checkin || !checkout) { showToast("Veuillez choisir les dates d'arrivée et de départ.", "error"); return; }
+              if (new Date(checkout) <= new Date(checkin)) { showToast("La date de départ doit être après l'arrivée.", "error"); return; }
+              if (guests > room.guests) { showToast(`Cette chambre accueille au maximum ${room.guests} personne(s).`, "error"); return; }
+              setStep(1);
+            }} className={`w-full ${styles.confirmBtn}`}>
+              Continuer vers le paiement →
+            </button>
+            </>
+            )}
+
+            {step === 1 && (
+            <>
             {total > 0 && (
               <div className={`rounded-2xl p-7 mb-6 ${styles.paymentCard}`}>
                 <h3 className={`mb-6 ${styles.paymentTitle}`}>Montant à payer</h3>
@@ -151,7 +181,7 @@ function BookingInner() {
                     style={{ background: !payPartial ? "#F0F5F2" : "#fff", border: !payPartial ? "2px solid #1A3C2E" : "2px solid rgba(26,60,46,0.1)" }}>
                     <div>
                       <p className={styles.paymentLabel}>Payer la totalité</p>
-                      <p className={styles.paymentDesc}>{formatFCFA(total)}</p>
+                      <p className={styles.paymentDesc}>{fmt(total)}</p>
                     </div>
                   </button>
                   <button type="button" onClick={() => setPayPartial(true)}
@@ -159,7 +189,7 @@ function BookingInner() {
                     style={{ background: payPartial ? "#FFF3EC" : "#fff", border: payPartial ? "2px solid #C4622D" : "2px solid rgba(26,60,46,0.1)" }}>
                     <div>
                       <p className={styles.paymentLabel}>Acompte de 50%</p>
-                      <p className={styles.paymentDesc}>{formatFCFA(Math.round(total * 0.5))} maintenant · solde de {formatFCFA(total - Math.round(total * 0.5))} à l&apos;arrivée</p>
+                      <p className={styles.paymentDesc}>{fmt(Math.round(total * 0.5))} maintenant · solde de {fmt(total - Math.round(total * 0.5))} à l&apos;arrivée</p>
                     </div>
                   </button>
                 </div>
@@ -176,7 +206,7 @@ function BookingInner() {
                     <div className={styles.paymentIcon} style={{ background: pm.bg, border: `1px solid ${pm.color}33` }}>{pm.icon}</div>
                     <div>
                       <p className={styles.paymentLabel}>{pm.label}</p>
-                      <p className={styles.paymentDesc}>{pm.description}</p>
+                      <p className={styles.paymentDesc}>{pm.id === "wallet" && walletSolde !== null ? `Solde disponible : ${fmt(walletSolde)}` : pm.description}</p>
                     </div>
                     {selectedPayment === pm.id && (<div className={`ml-auto flex-shrink-0 ${styles.paymentCheck}`} style={{ background: pm.color }}><CheckCircle size={14} color="#fff" fill="#fff" strokeWidth={0} /></div>)}
                   </button>
@@ -184,12 +214,17 @@ function BookingInner() {
               </div>
             </div>
 
+            <button type="button" onClick={() => setStep(0)} className="w-full mb-3" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, color: "#1A3C2E", background: "transparent", border: "1px solid rgba(26,60,46,0.2)", borderRadius: 10, padding: "12px", cursor: "pointer" }}>
+              ← Modifier le séjour
+            </button>
             <button onClick={handleConfirm} disabled={submitting} className={`w-full mb-4 ${styles.confirmBtn}`}>
-              {submitting ? "Traitement en cours…" : `Confirmer et payer ${formatFCFA(amountToPay)}${payPartial ? " (acompte)" : ""} →`}
+              {submitting ? "Traitement en cours…" : `Confirmer et payer ${fmt(amountToPay)}${payPartial ? " (acompte)" : ""} →`}
             </button>
             <p className={styles.termsText}>
               En confirmant, vous acceptez nos <span className={styles.termsLink}>conditions générales</span>. Annulation gratuite avant 48h.
             </p>
+            </>
+            )}
           </>
         ) : (
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: "easeOut" }} className="text-center">
@@ -218,12 +253,12 @@ function BookingInner() {
               </div>
               <div className={`flex items-center justify-between pt-5 ${styles.detailDivider}`}>
                 <span className={styles.totalPaidLabel}>{payPartial ? "Acompte payé (50%)" : "Total payé"}</span>
-                <span className={styles.totalPaidAmount}>{formatFCFA(amountToPay)}</span>
+                <span className={styles.totalPaidAmount}>{fmt(amountToPay)}</span>
               </div>
               {payPartial && (
                 <div className="flex items-center justify-between pt-2">
                   <span className={styles.totalPaidLabel}>Solde à régler à l&apos;arrivée</span>
-                  <span className={styles.totalPaidAmount}>{formatFCFA(total - amountToPay)}</span>
+                  <span className={styles.totalPaidAmount}>{fmt(total - amountToPay)}</span>
                 </div>
               )}
             </motion.div>

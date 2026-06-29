@@ -99,7 +99,7 @@ export default function ReservationsPage() {
           <div className={`text-center rounded-2xl p-12 ${styles.emptyCard}`}>
             <p className={styles.emptyTitle}>Aucune réservation pour l&apos;instant</p>
             <p className={`mb-6 ${styles.emptyText}`}>Trouvez votre prochain séjour au Cameroun.</p>
-            <Link href="/search" className={styles.emptyLink}>Explorer les hôtels</Link>
+            <Link href="/search" className={styles.emptyLink}>Explorer les Chambres</Link>
           </div>
         ) : (
           <div className="flex flex-col gap-4">

@@ -6,8 +6,11 @@ import {
   SlidersHorizontal, Star, Wifi, Wind, Coffee, Waves, Shield, MapPin, X,
 } from "lucide-react";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
-import { formatFCFA, annonceToRoom, fallbackRooms, type Room } from "@/data/rooms";
-import { getAnnonces } from "@/lib/api";
+import { formatPrix, annonceToRoom, fallbackRooms, type Room } from "@/data/rooms";
+import {
+  getAnnonces, getTypesChambre, getCaracteristiques,
+  type SearchParams, type TypeChambre, type Caracteristique,
+} from "@/lib/api";
 import styles from "./search.module.css";
 
 const amenityLabels: Record<string, string> = {
@@ -21,52 +24,104 @@ const amenityIcons: Record<string, React.ReactNode> = {
 // Limite haute : l'app affiche toutes les chambres disponibles (point 12)
 const FETCH_LIMIT = 1000;
 
+// Style du sélecteur "type" dans la barre latérale claire (cohérent avec les filtres).
+const typeSelectStyle: React.CSSProperties = {
+  fontFamily: "'DM Sans', sans-serif", fontSize: "14px", color: "#1A3C2E",
+  background: "#fff", border: "1px solid rgba(26,60,46,0.18)", borderRadius: "8px",
+  padding: "9px 12px", width: "100%", outline: "none", cursor: "pointer",
+};
+
 function SearchInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const cityParam = searchParams.get("city") || "";
+  const typeParam = searchParams.get("type") || "";
 
   const [allRooms, setAllRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [maxPrice, setMaxPrice] = useState(150000);
   const [selectedStars, setSelectedStars] = useState<number[]>([]);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState("recommended");
+  const [selectedCaracs, setSelectedCaracs] = useState<string[]>([]);
+  const [selectedType, setSelectedType] = useState(typeParam);
+  const [types, setTypes] = useState<TypeChambre[]>([]);
+  const [caracs, setCaracs] = useState<Caracteristique[]>([]);
+  const [sortBy, setSortBy] = useState("pertinence");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
+  // Catalogues (types + caractéristiques) pour les filtres
+  useEffect(() => {
+    (async () => {
+      const [t, c] = await Promise.all([getTypesChambre(), getCaracteristiques()]);
+      if (t.data) setTypes(t.data);
+      if (c.data) setCaracs(c.data);
+    })();
+  }, []);
+
+  // Si l'URL change (?type=…), on resynchronise le filtre
+  useEffect(() => { setSelectedType(typeParam); }, [typeParam]);
+
+  // Récupération des chambres — le tri "pertinence" délègue le classement
+  // au modèle côté serveur (scoring.service) via tri=pertinence + préférences.
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data } = await getAnnonces({ ville: cityParam || undefined, limit: FETCH_LIMIT });
+      const params: SearchParams = { limit: FETCH_LIMIT };
+      if (cityParam) params.ville = cityParam;
+      if (selectedType) params.type = selectedType;
+      if (sortBy === "pertinence") params.tri = "pertinence";
+      else if (sortBy === "rating") params.tri = "populaire";
+      if (selectedAmenities.length) params.equipements = selectedAmenities.join(",");
+      if (selectedCaracs.length) params.caracteristiques = selectedCaracs.join(",");
+
+      const { data } = await getAnnonces(params);
       if (data?.annonces?.length) setAllRooms(data.annonces.map(annonceToRoom));
-      else setAllRooms(cityParam ? [] : fallbackRooms);
+      else setAllRooms(cityParam || selectedType ? [] : fallbackRooms);
       setLoading(false);
     })();
-  }, [cityParam]);
+  }, [cityParam, selectedType, sortBy, selectedAmenities, selectedCaracs]);
 
   const filtered = useMemo(() => {
+    // En mode "pertinence", équipements/caractéristiques sont des PRÉFÉRENCES
+    // (le modèle classe), pas des filtres durs. Sinon ils filtrent strictement.
+    const filtreDur = sortBy !== "pertinence";
     let list = allRooms.filter((r) => {
       if (r.price > maxPrice) return false;
       if (selectedStars.length > 0 && !selectedStars.includes(r.stars)) return false;
-      if (selectedAmenities.length > 0 && !selectedAmenities.every((a) => r.amenities.includes(a))) return false;
+      if (filtreDur && selectedAmenities.length > 0 && !selectedAmenities.every((a) => r.amenities.includes(a))) return false;
+      if (filtreDur && selectedCaracs.length > 0 && !selectedCaracs.every((c) => (r.caracteristiques || []).includes(c))) return false;
       return true;
     });
     if (sortBy === "price_asc") list = [...list].sort((a, b) => a.price - b.price);
     else if (sortBy === "price_desc") list = [...list].sort((a, b) => b.price - a.price);
-    else if (sortBy === "rating") list = [...list].sort((a, b) => b.rating - a.rating);
+    // "pertinence" et "rating" : on conserve l'ordre renvoyé par le serveur
     return list;
-  }, [allRooms, maxPrice, selectedStars, selectedAmenities, sortBy]);
+  }, [allRooms, maxPrice, selectedStars, selectedAmenities, selectedCaracs, sortBy]);
 
   const toggleStar = (n: number) => setSelectedStars((p) => p.includes(n) ? p.filter((s) => s !== n) : [...p, n]);
   const toggleAmenity = (a: string) => setSelectedAmenities((p) => p.includes(a) ? p.filter((x) => x !== a) : [...p, a]);
+  const toggleCarac = (c: string) => setSelectedCaracs((p) => p.includes(c) ? p.filter((x) => x !== c) : [...p, c]);
+
+  const typeNom = types.find((t) => t.code === selectedType)?.nom;
+  const titre = cityParam
+    ? `Chambres à ${cityParam}`
+    : typeNom ? `Chambres — ${typeNom}` : "Toutes les chambres";
 
   const FilterPanel = () => (
     <div>
       <div className="mb-8">
+        <h4 className={`mb-4 ${styles.filterTitle}`}>Type de chambre</h4>
+        <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)} style={typeSelectStyle}>
+          <option value="">Tous les types</option>
+          {types.map((t) => (<option key={t.code} value={t.code}>{t.nom}</option>))}
+        </select>
+      </div>
+
+      <div className="mb-8">
         <h4 className={`mb-4 ${styles.filterTitle}`}>Prix par nuit</h4>
         <div className="flex justify-between mb-3">
           <span className={styles.priceLabel}>0 FCFA</span>
-          <span className={styles.priceValue}>{formatFCFA(maxPrice)}</span>
+          <span className={styles.priceValue}>{formatPrix(maxPrice)}</span>
         </div>
         <input type="range" min={10000} max={150000} step={5000} value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value))} className={`w-full ${styles.filterRange}`} />
       </div>
@@ -83,7 +138,7 @@ function SearchInner() {
         </div>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-8">
         <h4 className={`mb-4 ${styles.filterTitle}`}>Équipements</h4>
         <div className="flex flex-col gap-2.5">
           {Object.keys(amenityLabels).map((a) => (
@@ -95,7 +150,21 @@ function SearchInner() {
         </div>
       </div>
 
-      <button onClick={() => { setMaxPrice(150000); setSelectedStars([]); setSelectedAmenities([]); }} className={styles.resetBtn}>
+      {caracs.length > 0 && (
+        <div className="mb-4">
+          <h4 className={`mb-4 ${styles.filterTitle}`}>Caractéristiques</h4>
+          <div className="flex flex-col gap-2.5">
+            {caracs.map((c) => (
+              <label key={c.code} className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={selectedCaracs.includes(c.code)} onChange={() => toggleCarac(c.code)} className={styles.checkbox} />
+                <span className={`flex items-center gap-2 ${styles.filterLabel}`}>{c.nom}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <button onClick={() => { setMaxPrice(150000); setSelectedStars([]); setSelectedAmenities([]); setSelectedCaracs([]); setSelectedType(""); }} className={styles.resetBtn}>
         Réinitialiser les filtres
       </button>
     </div>
@@ -106,19 +175,17 @@ function SearchInner() {
       <div className={styles.banner}>
         <div className={`mx-auto px-6 flex items-center justify-between flex-wrap gap-4 ${styles.bannerInner}`}>
           <div>
-            <h1 className={styles.pageTitle}>
-              {cityParam ? `Hôtels à ${cityParam}` : "Tous les hébergements"}
-            </h1>
+            <h1 className={styles.pageTitle}>{titre}</h1>
             <p className={styles.pageCount}>
-              {loading ? "Chargement…" : `${filtered.length} résultat${filtered.length > 1 ? "s" : ""} trouvé${filtered.length > 1 ? "s" : ""}`}
+              {loading ? "Chargement…" : `${filtered.length} chambre${filtered.length > 1 ? "s" : ""} trouvée${filtered.length > 1 ? "s" : ""}`}
             </p>
           </div>
           <div className="flex items-center gap-3">
             <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className={styles.sortSelect}>
-              <option value="recommended" className="bg-forest">Recommandé</option>
+              <option value="pertinence" className="bg-forest">Pertinence</option>
               <option value="price_asc" className="bg-forest">Prix croissant</option>
               <option value="price_desc" className="bg-forest">Prix décroissant</option>
-              <option value="rating" className="bg-forest">Mieux notés</option>
+              <option value="rating" className="bg-forest">Mieux notées</option>
             </select>
             <button className={`md:hidden flex items-center gap-2 ${styles.mobileFilterBtn}`} onClick={() => setMobileFiltersOpen(true)}>
               <SlidersHorizontal size={16} /> Filtres
@@ -154,8 +221,8 @@ function SearchInner() {
               <div className="flex flex-col gap-5">{[...Array(3)].map((_, i) => (<div key={i} className="skeleton rounded-2xl h-[200px]" />))}</div>
             ) : filtered.length === 0 ? (
               <div className="text-center py-20">
-                <p className={styles.emptyTitle}>Aucun résultat</p>
-                <p className={styles.emptyText}>Essayez d&apos;ajuster vos filtres ou une autre ville.</p>
+                <p className={styles.emptyTitle}>Aucune chambre</p>
+                <p className={styles.emptyText}>Essayez d&apos;ajuster vos filtres ou un autre type.</p>
               </div>
             ) : (
               <div className="flex flex-col gap-5">
@@ -169,7 +236,7 @@ function SearchInner() {
                     </div>
                     <div className="flex-1 p-6 flex flex-col">
                       <div className="flex items-start justify-between mb-1">
-                        <span className={styles.resultHotel}>{room.hotel}</span>
+                        <span className={styles.resultHotel}>{room.type} · {room.hotel}</span>
                         <div className="flex items-center gap-1">{[...Array(room.stars)].map((_, i) => (<Star key={i} size={12} fill="#C9943A" color="#C9943A" strokeWidth={0} />))}</div>
                       </div>
                       <h3 className={`mb-2 ${styles.resultName}`}>{room.name}</h3>
@@ -188,10 +255,10 @@ function SearchInner() {
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="text-right">
-                            <div className={styles.resultPrice}>{formatFCFA(room.price)}</div>
+                            <div className={styles.resultPrice}>{formatPrix(room.price, room.devise)}</div>
                             <div className={styles.resultPeriod}>par nuit</div>
                           </div>
-                          <button onClick={() => router.push(`/room/${room.id}`)} className={styles.viewBtn}>Voir & réserver</button>
+                          <button onClick={() => router.push(`/room/${room.id}`)} className={styles.viewBtn}>Voir &amp; réserver</button>
                         </div>
                       </div>
                     </div>
