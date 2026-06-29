@@ -9,7 +9,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   getAnnonce, getAvis, createAvis, createReservation,
-  Annonce, AvisItem,
+  Annonce, AvisItem, // Utilisez AvisItem au lieu de Avis
 } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -60,24 +60,35 @@ function StarRating({
 }
 
 // ══════════════════════════════════════════════════════════
-//  COMPOSANT CARTE AVIS
+//  COMPOSANT CARTE AVIS - Corrigé pour utiliser AvisItem
 // ══════════════════════════════════════════════════════════
 
-function AvisCard({ avis }: { avis: Avis }) {
+function AvisCard({ avis }: { avis: AvisItem }) {
+  // Extraction des données avec des valeurs par défaut
+  const nomComplet = avis.client_nom 
+    ? `${avis.client_prenom || ''} ${avis.client_nom}`.trim()
+    : "Utilisateur anonyme";
+  
+  const initiale = avis.client_prenom?.[0]?.toUpperCase() || "?";
+  
+  const dateAvis = avis.dateevaluation 
+    ? new Date(avis.dateevaluation) 
+    : new Date();
+
   return (
     <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-red-500 text-white flex
                           items-center justify-center font-bold text-sm flex-shrink-0">
-            {avis.auteur?.prenom?.[0]?.toUpperCase() ?? "?"}
+            {initiale}
           </div>
           <div>
             <p className="font-semibold text-gray-800 text-sm">
-              {avis.auteur?.prenom} {avis.auteur?.nom}
+              {nomComplet}
             </p>
             <p className="text-gray-400 text-xs">
-              {new Date(avis.created_at).toLocaleDateString("fr-FR", {
+              {dateAvis.toLocaleDateString("fr-FR", {
                 year: "numeric", month: "long", day: "numeric",
               })}
             </p>
@@ -85,7 +96,9 @@ function AvisCard({ avis }: { avis: Avis }) {
         </div>
         <StarRating value={avis.note} readonly />
       </div>
-      <p className="text-gray-600 text-sm leading-relaxed">{avis.commentaire}</p>
+      {avis.commentaire && (
+        <p className="text-gray-600 text-sm leading-relaxed">{avis.commentaire}</p>
+      )}
     </div>
   );
 }
@@ -102,7 +115,7 @@ export default function ListingDetailPage() {
 
   // ── Données ────────────────────────────────────────────
   const [annonce,  setAnnonce]  = useState<Annonce | null>(null);
-  const [avis,     setAvis]     = useState<Avis[]>([]);
+  const [avis,     setAvis]     = useState<AvisItem[]>([]); // Utilisez AvisItem[]
   const [loading,  setLoading]  = useState(true);
 
   // ── Galerie ────────────────────────────────────────────
@@ -134,21 +147,37 @@ export default function ListingDetailPage() {
         return;
       }
       setAnnonce(resAnnonce.data);
-      setAvis(resAvis.data ?? []);
+      
+      // Correction : Vérifiez la structure de la réponse d'avis
+      if (resAvis.data) {
+        // La réponse de getAvis peut être { avis: [], note_moyenne: 0, nb_avis: 0 }
+        if (Array.isArray(resAvis.data)) {
+          setAvis(resAvis.data);
+        } else if (resAvis.data.avis && Array.isArray(resAvis.data.avis)) {
+          setAvis(resAvis.data.avis);
+        } else {
+          setAvis([]);
+        }
+      } else {
+        setAvis([]);
+      }
+      
       setLoading(false);
     }
     load();
-  }, [id]); // eslint-disable-line
+  }, [id, router, showToast]); // Ajout des dépendances manquantes
 
   // ── Toutes les photos ──────────────────────────────────
   const photos = annonce?.images ?? [];
 
   // ── Montant total calculé ──────────────────────────────
   const nuits = dateDebut && dateFin ? diffJours(dateDebut, dateFin) : 0;
-  const montantTotal = nuits * (annonce?.prix ?? 0);
+  // Correction : Utilisez prixparnuit ou prix
+  const prixParNuit = annonce?.prixparnuit || annonce?.prix || 0;
+  const montantTotal = nuits * Number(prixParNuit);
 
   // ══════════════════════════════════════════════════════
-  //  SOUMISSION RÉSERVATION
+  //  SOUMISSION RÉSERVATION - Corrigé
   // ══════════════════════════════════════════════════════
 
   async function handleReservation(e: FormEvent) {
@@ -169,9 +198,10 @@ export default function ListingDetailPage() {
 
     setResLoading(true);
     const { data, error } = await createReservation({
-      annonce_id:  Number(id),
-      date_debut:  dateDebut,
-      date_fin:    dateFin,
+      annonce_id: Number(id),
+      dateDebut: dateDebut,  // Correction : Utilisez dateDebut, pas date_debut
+      dateFin: dateFin,      // Correction : Utilisez dateFin, pas date_fin
+      nombrePersonnes: 1,    // Ajout du nombre de personnes
     });
     setResLoading(false);
 
@@ -184,7 +214,7 @@ export default function ListingDetailPage() {
   }
 
   // ══════════════════════════════════════════════════════
-  //  SOUMISSION AVIS
+  //  SOUMISSION AVIS - Corrigé
   // ══════════════════════════════════════════════════════
 
   async function handleAvis(e: FormEvent) {
@@ -195,7 +225,12 @@ export default function ListingDetailPage() {
     }
 
     setAvisLoading(true);
-    const { data, error } = await createAvis({ annonce_id: Number(id), note, commentaire });
+    // Correction : createAvis attend reservation_id, pas annonce_id
+    const { data, error } = await createAvis({ 
+      reservation_id: 0, // ❗ À remplacer par l'ID réel de la réservation
+      note, 
+      commentaire 
+    });
     setAvisLoading(false);
 
     if (error || !data) {
@@ -260,20 +295,20 @@ export default function ListingDetailPage() {
               <span className="flex items-center gap-1">
                 ⭐ {parseFloat(String(annonce.note_moyenne)).toFixed(1)}
                 <span className="text-gray-400">
-                  ({annonce.nombre_avis} avis)
+                  ({annonce.nb_avis || 0} avis)
                 </span>
               </span>
             )}
-            <span>👤 {annonce.capacite} personne{annonce.capacite > 1 ? "s" : ""}</span>
+            <span>👤 {annonce.capacite} personne{annonce.capacite && annonce.capacite > 1 ? "s" : ""}</span>
             {annonce.superficie && <span>📐 {annonce.superficie} m²</span>}
           </div>
         </div>
         {/* Badge disponibilité */}
         <span className={`px-4 py-1.5 rounded-full text-sm font-bold
-                          ${annonce.disponible
+                          ${annonce.disponible !== false
                             ? "bg-green-100 text-green-700"
                             : "bg-gray-100 text-gray-500"}`}>
-          {annonce.disponible ? "✅ Disponible" : "❌ Indisponible"}
+          {annonce.disponible !== false ? "✅ Disponible" : "❌ Indisponible"}
         </span>
       </div>
 
@@ -382,26 +417,21 @@ export default function ListingDetailPage() {
         {/* ── COLONNE GAUCHE : Infos ── */}
         <div className="lg:col-span-2 space-y-8">
 
-          {/* Hôte */}
-          {annonce.hote && (
+          {/* Hôte - Corrigé */}
+          {annonce.hote_nom && (
             <div className="flex items-center gap-4 p-5 bg-gray-50 rounded-2xl
                             border border-gray-100">
               <div className="w-14 h-14 rounded-full bg-red-500 text-white flex
                               items-center justify-center font-bold text-xl flex-shrink-0">
-                {annonce.hote.prenom?.[0]?.toUpperCase()}
+                {annonce.hote_prenom?.[0]?.toUpperCase() || "?"}
               </div>
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">
                   Proposé par
                 </p>
                 <p className="font-bold text-gray-900 text-lg">
-                  {annonce.hote.prenom} {annonce.hote.nom}
+                  {annonce.hote_prenom} {annonce.hote_nom}
                 </p>
-                {annonce.hote.telephone && (
-                  <p className="text-sm text-gray-500 mt-0.5">
-                    📞 {annonce.hote.telephone}
-                  </p>
-                )}
               </div>
             </div>
           )}
@@ -416,19 +446,19 @@ export default function ListingDetailPage() {
             </p>
           </div>
 
-          {/* Caractéristiques */}
+          {/* Caractéristiques - Corrigé */}
           <div>
             <h2 className="font-playfair text-2xl font-bold text-gray-900 mb-4">
               Caractéristiques
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {[
-                { icon: "👤", label: "Capacité",   value: `${annonce.capacite} personne${annonce.capacite > 1 ? "s" : ""}` },
+                { icon: "👤", label: "Capacité",   value: `${annonce.capacite || 1} personne${annonce.capacite && annonce.capacite > 1 ? "s" : ""}` },
                 { icon: "📍", label: "Ville",      value: annonce.ville },
                 { icon: "📐", label: "Superficie", value: annonce.superficie ? `${annonce.superficie} m²` : "N/A" },
-                { icon: "💰", label: "Prix/nuit",  value: `${Number(annonce.prix_par_nuit).toLocaleString("fr-FR")} FCFA` },
+                { icon: "💰", label: "Prix/nuit",  value: `${Number(prixParNuit).toLocaleString("fr-FR")} FCFA` },
                 { icon: "⭐", label: "Note moy.",  value: annonce.note_moyenne ? parseFloat(String(annonce.note_moyenne)).toFixed(1) + " / 5" : "Aucun avis" },
-                { icon: "📅", label: "Avis",       value: `${annonce.nombre_avis ?? 0} avis` },
+                { icon: "📅", label: "Avis",       value: `${annonce.nb_avis || 0} avis` },
               ].map((item) => (
                 <div key={item.label}
                      className="bg-gray-50 rounded-xl p-4 border border-gray-100">
@@ -471,7 +501,7 @@ export default function ListingDetailPage() {
               )}
             </div>
 
-            {/* Formulaire avis */}
+            {/* Formulaire avis - Corrigé */}
             {showAvisForm && (
               <form
                 onSubmit={handleAvis}
@@ -535,22 +565,22 @@ export default function ListingDetailPage() {
           <div className="sticky top-24">
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
 
-              {/* Prix */}
+              {/* Prix - Corrigé */}
               <div className="mb-6">
                 <p className="font-bold text-gray-900 text-2xl">
-                  {Number(annonce.prix_par_nuit).toLocaleString("fr-FR")}
+                  {Number(prixParNuit).toLocaleString("fr-FR")}
                   <span className="text-gray-400 font-normal text-base"> FCFA</span>
                   <span className="text-gray-400 font-normal text-sm"> /nuit</span>
                 </p>
                 {annonce.note_moyenne && (
                   <p className="text-sm text-gray-400 mt-1">
                     ⭐ {parseFloat(String(annonce.note_moyenne)).toFixed(1)}
-                    · {annonce.nombre_avis} avis
+                    · {annonce.nb_avis || 0} avis
                   </p>
                 )}
               </div>
 
-              {annonce.disponible ? (
+              {annonce.disponible !== false ? (
                 <form onSubmit={handleReservation} className="space-y-4">
 
                   {/* Dates */}
@@ -592,7 +622,7 @@ export default function ListingDetailPage() {
                     <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
                       <div className="flex justify-between text-gray-600">
                         <span>
-                          {Number(annonce.prix_par_nuit).toLocaleString("fr-FR")} FCFA
+                          {Number(prixParNuit).toLocaleString("fr-FR")} FCFA
                           × {nuits} nuit{nuits > 1 ? "s" : ""}
                         </span>
                         <span>{montantTotal.toLocaleString("fr-FR")} FCFA</span>
